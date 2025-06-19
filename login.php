@@ -1,5 +1,11 @@
 <?php
+// Add session_start() if not already started
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once 'config/database.php';
+require_once 'config/functions.php'; // Add this line
 
 // If already logged in, redirect to appropriate page
 if (isset($_SESSION['user_logged_in']) && $_SESSION['user_logged_in'] === true) {
