@@ -268,7 +268,7 @@ if ($_POST) {
                 </button>
             </form>
 
-            <!-- Demo Accounts -->
+            <!-- Demo Accounts 
             <div class="mt-8 p-4 bg-gray-50 rounded-lg">
                 <h3 class="text-sm font-semibold text-gray-700 mb-3">🔧 บัญชีทดสอบ:</h3>
                 <div class="text-xs text-gray-600 space-y-2">
@@ -289,7 +289,7 @@ if ($_POST) {
                         <span class="font-mono">nurse1 / nurse123</span>
                     </div>
                 </div>
-            </div> 
+            </div>  -->
 
             <!-- System Status -->
             <div class="mt-6 text-center">

@@ -43,7 +43,7 @@ include 'includes/header.php';
                             'name' => 'ศัลยกรรม',
                             'icon' => '🏥',
                             'time' => 'จันทร์-ศุกร์ 08:00-16:30',
-                            'desc' => 'การผ่าตัดทั่วไป การรักษาบาดแผล'
+                            'desc' => 'การรักษาบาดแผล'
                         ],
                         [
                             'name' => 'ออร์โธปิดิกส์',
@@ -82,19 +82,21 @@ include 'includes/header.php';
                             <ul class="space-y-3">
                                 <li class="flex items-center space-x-3">
                                     <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
-                                    <span>ห้องพิเศษ (VIP) - 1 เตียง</span>
+                                    <span>ห้องพิเศษ - 5 เตียง</span>
+                                </li>
+                                
                                 </li>
                                 <li class="flex items-center space-x-3">
                                     <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
-                                    <span>ห้องเตียงเดี่ยว - 1 เตียง</span>
+                                    <span>ห้องผู้ป่วยรวมชาย - 12 เตียง</span>
                                 </li>
                                 <li class="flex items-center space-x-3">
                                     <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
-                                    <span>ห้องเตียงคู่ - 2 เตียง</span>
+                                    <span>ห้องผู้ป่วยรวมหญิง - 12 เตียง</span>
                                 </li>
                                 <li class="flex items-center space-x-3">
                                     <span class="w-2 h-2 bg-blue-600 rounded-full"></span>
-                                    <span>ห้องรวม - 4-6 เตียง</span>
+                                    <span>ห้องแยกโรค - 1 เตียง</span>
                                 </li>
                             </ul>
                         </div>

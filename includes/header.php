@@ -84,6 +84,7 @@
                     <a href="news.php" class="text-gray-700 hover:text-blue-600 font-medium transition duration-300">ข่าวสาร</a>
                     <a href="appointment.php" class="text-gray-700 hover:text-blue-600 font-medium transition duration-300">นัดหมาย</a>
                     <a href="contact.php" class="text-gray-700 hover:text-blue-600 font-medium transition duration-300">ติดต่อ</a>
+                    <a href="login.php" class="text-gray-700 hover:text-blue-600 font-medium transition duration-300">เจ้าหน้าที่</a>
                 </div>
 
                 <!-- Mobile Menu Button -->
@@ -104,6 +105,7 @@
                 <a href="news.php" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">ข่าวสาร</a>
                 <a href="appointment.php" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">นัดหมาย</a>
                 <a href="contact.php" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">ติดต่อ</a>
+                <a href="login.php" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">เจ้าหน้าที่</a>
             </div>
         </div>
     </nav>

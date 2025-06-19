@@ -195,7 +195,8 @@ include 'includes/header.php';
 
                 <div class="grid lg:grid-cols-2 gap-12">
                     <!-- Appointment Form -->
-                    <div class="bg-white rounded-lg shadow-lg p-8">
+                    
+                    <div  class="bg-white rounded-lg shadow-lg p-8">
                         <h2 class="text-2xl font-bold mb-6 text-gray-800">📅 ฟอร์มนัดหมาย</h2>
                         
                         <form method="POST" class="space-y-6" id="appointmentForm">
@@ -255,6 +256,7 @@ include 'includes/header.php';
                                            placeholder="example@email.com">
                                 </div>
                             </div>
+                    
 
                             <!-- Appointment Details -->
                             <div class="border-b pb-6">
@@ -333,6 +335,7 @@ include 'includes/header.php';
                                     กดส่งแล้ว ระบบจะส่ง SMS ยืนยันให้ภายใน 24 ชั่วโมง
                                 </p>
                             </div>
+                            
                         </form>
                     </div>
 
