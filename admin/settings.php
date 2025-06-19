@@ -33,7 +33,17 @@ if ($_POST) {
             
             $updated_count = 0;
             foreach ($settings as $key => $value) {
-                if (setSetting($conn, $key, $value, 'string', 'Hospital ' . ucfirst(str_replace('_', ' ', $key)))) {
+                // Insert or update settings
+                $stmt = $conn->prepare("
+                    INSERT INTO settings (setting_key, setting_value, setting_type, description, updated_at) 
+                    VALUES (?, ?, 'string', ?, NOW())
+                    ON DUPLICATE KEY UPDATE 
+                    setting_value = VALUES(setting_value), 
+                    updated_at = NOW()
+                ");
+                
+                $description = 'Hospital ' . ucfirst(str_replace('_', ' ', $key));
+                if ($stmt->execute([$key, $value, $description])) {
                     $updated_count++;
                 }
             }
@@ -64,7 +74,17 @@ if ($_POST) {
             $updated_count = 0;
             foreach ($settings as $key => $value) {
                 $type = is_numeric($value) ? 'number' : (in_array($value, ['0', '1']) ? 'boolean' : 'string');
-                if (setSetting($conn, $key, $value, $type, 'Appointment ' . ucfirst(str_replace('_', ' ', $key)))) {
+                
+                $stmt = $conn->prepare("
+                    INSERT INTO settings (setting_key, setting_value, setting_type, description, updated_at) 
+                    VALUES (?, ?, ?, ?, NOW())
+                    ON DUPLICATE KEY UPDATE 
+                    setting_value = VALUES(setting_value), 
+                    updated_at = NOW()
+                ");
+                
+                $description = 'Appointment ' . ucfirst(str_replace('_', ' ', $key));
+                if ($stmt->execute([$key, $value, $type, $description])) {
                     $updated_count++;
                 }
             }
@@ -94,7 +114,17 @@ if ($_POST) {
             $updated_count = 0;
             foreach ($settings as $key => $value) {
                 $type = is_numeric($value) ? 'number' : (in_array($value, ['0', '1']) ? 'boolean' : 'string');
-                if (setSetting($conn, $key, $value, $type, 'System ' . ucfirst(str_replace('_', ' ', $key)))) {
+                
+                $stmt = $conn->prepare("
+                    INSERT INTO settings (setting_key, setting_value, setting_type, description, updated_at) 
+                    VALUES (?, ?, ?, ?, NOW())
+                    ON DUPLICATE KEY UPDATE 
+                    setting_value = VALUES(setting_value), 
+                    updated_at = NOW()
+                ");
+                
+                $description = 'System ' . ucfirst(str_replace('_', ' ', $key));
+                if ($stmt->execute([$key, $value, $type, $description])) {
                     $updated_count++;
                 }
             }
@@ -107,7 +137,7 @@ if ($_POST) {
             }
             
         } elseif ($action === 'backup_database') {
-            // Basic backup functionality (in production, use mysqldump or similar)
+            // Basic backup functionality
             $backup_name = 'backup_' . date('Y-m-d_H-i-s') . '.sql';
             $backup_path = '../backups/' . $backup_name;
             
@@ -122,10 +152,11 @@ if ($_POST) {
         } elseif ($action === 'clear_logs') {
             $days = (int)($_POST['clear_days'] ?? 30);
             $stmt = $conn->prepare("DELETE FROM activity_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)");
-            $affected = $stmt->execute([$days]);
+            $stmt->execute([$days]);
+            $affected = $stmt->rowCount();
             
-            logActivity($conn, $_SESSION['user_id'], 'logs_cleared', 'activity_logs', null, null, ['days' => $days]);
-            $message = "ล้างข้อมูล log ที่เก่ากว่า $days วันเรียบร้อยแล้ว";
+            logActivity($conn, $_SESSION['user_id'], 'logs_cleared', 'activity_logs', null, null, ['days' => $days, 'affected' => $affected]);
+            $message = "ล้างข้อมูล log ที่เก่ากว่า $days วัน จำนวน $affected รายการเรียบร้อยแล้ว";
             
         } elseif ($action === 'test_email') {
             $test_email = sanitizeInput($_POST['test_email'] ?? '');
@@ -149,6 +180,20 @@ try {
     $db = new Database();
     $conn = $db->getConnection();
     
+    // Create settings table if not exists
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS settings (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            setting_key VARCHAR(100) NOT NULL UNIQUE,
+            setting_value TEXT,
+            setting_type ENUM('string', 'number', 'boolean', 'json') DEFAULT 'string',
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_setting_key (setting_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+    
     // Get all settings
     $stmt = $conn->prepare("SELECT setting_key, setting_value, setting_type FROM settings ORDER BY setting_key");
     $stmt->execute();
@@ -170,10 +215,10 @@ try {
     ];
     
 } catch (Exception $e) {
-    $error = "เกิดข้อผิดพลาดในการโหลดข้อมูล";
+    $error = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " . $e->getMessage();
     logError($e->getMessage(), __FILE__, __LINE__);
     $settings = [];
-    $stats = [];
+    $stats = ['total_users' => 0, 'total_appointments' => 0, 'total_patients' => 0, 'total_logs' => 0, 'database_size' => 0, 'disk_usage' => 0];
 }
 
 // Helper function to get setting value
@@ -195,7 +240,11 @@ function getSettingValue($key, $default = '') {
         body { font-family: 'Sarabun', sans-serif; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .tab-button.active { background-color: #3b82f6; color: white; }
+        .tab-button.active { 
+            background-color: #3b82f6; 
+            color: white; 
+            border-color: #3b82f6;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -462,3 +511,430 @@ function getSettingValue($key, $default = '') {
                                                value="<?php echo htmlspecialchars(getSettingValue('working_hours_start', '08:00')); ?>"
                                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                     </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">เวลาเลิกงาน (จันทร์-ศุกร์)</label>
+                                        <input type="time" name="working_hours_end"
+                                               value="<?php echo htmlspecialchars(getSettingValue('working_hours_end', '16:30')); ?>"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </div>
+                                
+                                <div class="grid md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">เวลาเริ่มงาน (เสาร์-อาทิตย์)</label>
+                                        <input type="time" name="weekend_hours_start"
+                                               value="<?php echo htmlspecialchars(getSettingValue('weekend_hours_start', '08:00')); ?>"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">เวลาเลิกงาน (เสาร์-อาทิตย์)</label>
+                                        <input type="time" name="weekend_hours_end"
+                                               value="<?php echo htmlspecialchars(getSettingValue('weekend_hours_end', '12:00')); ?>"
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">วันทำการ</label>
+                                    <div class="grid grid-cols-7 gap-2">
+                                        <?php
+                                        $working_days = explode(',', getSettingValue('working_days', '1,2,3,4,5'));
+                                        $days = ['1' => 'จ', '2' => 'อ', '3' => 'พ', '4' => 'พฤ', '5' => 'ศ', '6' => 'ส', '0' => 'อา'];
+                                        foreach ($days as $value => $label):
+                                        ?>
+                                        <label class="flex items-center space-x-2">
+                                            <input type="checkbox" name="working_days[]" value="<?php echo $value; ?>"
+                                                   <?php echo in_array($value, $working_days) ? 'checked' : ''; ?>
+                                                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                            <span class="text-sm"><?php echo $label; ?></span>
+                                        </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <input type="hidden" name="working_days" value="<?php echo htmlspecialchars(getSettingValue('working_days', '1,2,3,4,5')); ?>">
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <h4 class="font-semibold text-gray-800">การแจ้งเตือน</h4>
+                                <div class="space-y-3">
+                                    <label class="flex items-center space-x-2">
+                                        <input type="checkbox" name="auto_confirm_appointments" value="1"
+                                               <?php echo getSettingValue('auto_confirm_appointments') === '1' ? 'checked' : ''; ?>
+                                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="text-sm">ยืนยันการนัดหมายอัตโนมัติ</span>
+                                    </label>
+                                    
+                                    <label class="flex items-center space-x-2">
+                                        <input type="checkbox" name="send_sms_notifications" value="1"
+                                               <?php echo getSettingValue('send_sms_notifications') === '1' ? 'checked' : ''; ?>
+                                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="text-sm">ส่ง SMS แจ้งเตือน</span>
+                                    </label>
+                                    
+                                    <label class="flex items-center space-x-2">
+                                        <input type="checkbox" name="send_email_notifications" value="1"
+                                               <?php echo getSettingValue('send_email_notifications') === '1' ? 'checked' : ''; ?>
+                                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                        <span class="text-sm">ส่งอีเมลแจ้งเตือน</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="pt-4">
+                                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-300">
+                                    📅 บันทึกการตั้งค่าการนัดหมาย
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- System Settings Tab -->
+                    <div id="system-tab" class="tab-content">
+                        <h3 class="text-xl font-semibold mb-6">การตั้งค่าระบบ</h3>
+                        <form method="POST" class="space-y-6">
+                            <input type="hidden" name="action" value="update_system_settings">
+                            
+                            <div class="space-y-4">
+                                <h4 class="font-semibold text-gray-800">โหมดบำรุงรักษา</h4>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" name="maintenance_mode" value="1"
+                                           <?php echo getSettingValue('maintenance_mode') === '1' ? 'checked' : ''; ?>
+                                           class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                                    <span class="text-sm">เปิดใช้งานโหมดบำรุงรักษา (ปิดระบบชั่วคราว)</span>
+                                </label>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">ข้อความแจ้งเตือนระหว่างบำรุงรักษา</label>
+                                    <textarea name="maintenance_message" rows="3"
+                                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                              placeholder="ระบบอยู่ระหว่างการบำรุงรักษา กรุณาลองใหม่ภายหลัง"><?php echo htmlspecialchars(getSettingValue('maintenance_message', '')); ?></textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">หมดเวลาเซสชัน (นาที)</label>
+                                    <input type="number" name="session_timeout" min="30" max="1440"
+                                           value="<?php echo htmlspecialchars(getSettingValue('session_timeout', '120')); ?>"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">จำนวนครั้งที่เข้าสู่ระบบผิดสูงสุด</label>
+                                    <input type="number" name="max_login_attempts" min="3" max="10"
+                                           value="<?php echo htmlspecialchars(getSettingValue('max_login_attempts', '5')); ?>"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">เวลาล็อคบัญชี (นาที)</label>
+                                    <input type="number" name="login_lockout_time" min="5" max="1440"
+                                           value="<?php echo htmlspecialchars(getSettingValue('login_lockout_time', '30')); ?>"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">ความยาวรหัสผ่านต่ำสุด</label>
+                                    <input type="number" name="password_min_length" min="6" max="20"
+                                           value="<?php echo htmlspecialchars(getSettingValue('password_min_length', '6')); ?>"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <h4 class="font-semibold text-gray-800">การตั้งค่าความปลอดภัย</h4>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" name="require_password_complexity" value="1"
+                                           <?php echo getSettingValue('require_password_complexity') === '1' ? 'checked' : ''; ?>
+                                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span class="text-sm">บังคับใช้รหัสผ่านที่ซับซ้อน</span>
+                                </label>
+                                
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" name="enable_registration" value="1"
+                                           <?php echo getSettingValue('enable_registration') === '1' ? 'checked' : ''; ?>
+                                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span class="text-sm">เปิดให้สมัครสมาชิกได้</span>
+                                </label>
+                                
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" name="enable_api" value="1"
+                                           <?php echo getSettingValue('enable_api') === '1' ? 'checked' : ''; ?>
+                                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span class="text-sm">เปิดใช้งาน API</span>
+                                </label>
+                            </div>
+                            
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">เก็บ Log กี่วัน</label>
+                                    <input type="number" name="log_retention_days" min="30" max="365"
+                                           value="<?php echo htmlspecialchars(getSettingValue('log_retention_days', '90')); ?>"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">เก็บ Backup กี่วัน</label>
+                                    <input type="number" name="backup_retention_days" min="7" max="365"
+                                           value="<?php echo htmlspecialchars(getSettingValue('backup_retention_days', '30')); ?>"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            
+                            <div class="pt-4">
+                                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-300">
+                                    ⚙️ บันทึกการตั้งค่าระบบ
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Maintenance Tab -->
+                    <div id="maintenance-tab" class="tab-content">
+                        <h3 class="text-xl font-semibold mb-6">การบำรุงรักษาระบบ</h3>
+                        
+                        <div class="space-y-8">
+                            <!-- Database Backup -->
+                            <div class="border border-gray-200 rounded-lg p-6">
+                                <h4 class="text-lg font-semibold mb-4">💾 สำรองข้อมูล</h4>
+                                <p class="text-gray-600 mb-4">สำรองข้อมูลฐานข้อมูลเพื่อป้องกันการสูญหาย</p>
+                                
+                                <form method="POST" class="inline">
+                                    <input type="hidden" name="action" value="backup_database">
+                                    <button type="submit" 
+                                            class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300"
+                                            onclick="return confirm('ต้องการสำรองข้อมูลหรือไม่?')">
+                                        🗄️ สำรองข้อมูลทันที
+                                    </button>
+                                </form>
+                                
+                                <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                                    <p class="text-sm text-yellow-800">
+                                        <strong>หมายเหตุ:</strong> สำหรับการสำรองข้อมูลที่สมบูรณ์ ควรใช้เครื่องมือ mysqldump หรือระบบสำรองข้อมูลอัตโนมัติ
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- Clear Logs -->
+                            <div class="border border-gray-200 rounded-lg p-6">
+                                <h4 class="text-lg font-semibold mb-4">🗂️ ล้าง Log</h4>
+                                <p class="text-gray-600 mb-4">ล้างข้อมูล log เก่าเพื่อประหยัดพื้นที่เก็บข้อมูล</p>
+                                
+                                <form method="POST" class="space-y-4">
+                                    <input type="hidden" name="action" value="clear_logs">
+                                    <div class="flex items-center space-x-4">
+                                        <label class="text-sm font-medium text-gray-700">ล้าง log ที่เก่ากว่า:</label>
+                                        <select name="clear_days" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                            <option value="30">30 วัน</option>
+                                            <option value="60">60 วัน</option>
+                                            <option value="90">90 วัน</option>
+                                            <option value="180">180 วัน</option>
+                                        </select>
+                                        <button type="submit" 
+                                                class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition duration-300"
+                                                onclick="return confirm('ต้องการล้าง log หรือไม่? การดำเนินการนี้ไม่สามารถยกเลิกได้')">
+                                            🧹 ล้าง Log
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            
+                            <!-- Email Test -->
+                            <div class="border border-gray-200 rounded-lg p-6">
+                                <h4 class="text-lg font-semibold mb-4">📧 ทดสอบอีเมล</h4>
+                                <p class="text-gray-600 mb-4">ทดสอบการส่งอีเมลของระบบ</p>
+                                
+                                <form method="POST" class="space-y-4">
+                                    <input type="hidden" name="action" value="test_email">
+                                    <div class="flex items-center space-x-4">
+                                        <label class="text-sm font-medium text-gray-700">ส่งไปยัง:</label>
+                                        <input type="email" name="test_email" required
+                                               class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                               placeholder="test@example.com">
+                                        <button type="submit" 
+                                                class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300">
+                                            📤 ทดสอบส่งอีเมล
+                                        </button>
+                                    </div>
+                                </form>
+                                
+                                <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded">
+                                    <p class="text-sm text-blue-800">
+                                        <strong>หมายเหตุ:</strong> ต้องตั้งค่า SMTP หรือระบบส่งอีเมลก่อนใช้งาน
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- System Information -->
+                            <div class="border border-gray-200 rounded-lg p-6">
+                                <h4 class="text-lg font-semibold mb-4">ℹ️ ข้อมูลระบบ</h4>
+                                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                                    <div class="space-y-2">
+                                        <div><strong>PHP Version:</strong> <?php echo PHP_VERSION; ?></div>
+                                        <div><strong>Server:</strong> <?php echo $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown'; ?></div>
+                                        <div><strong>MySQL Version:</strong> 
+                                            <?php 
+                                            try {
+                                                echo $conn->query("SELECT VERSION()")->fetchColumn();
+                                            } catch (Exception $e) {
+                                                echo 'Unknown';
+                                            }
+                                            ?>
+                                        </div>
+                                        <div><strong>Max Upload Size:</strong> <?php echo ini_get('upload_max_filesize'); ?></div>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <div><strong>Memory Limit:</strong> <?php echo ini_get('memory_limit'); ?></div>
+                                        <div><strong>Max Execution Time:</strong> <?php echo ini_get('max_execution_time'); ?>s</div>
+                                        <div><strong>Timezone:</strong> <?php echo date_default_timezone_get(); ?></div>
+                                        <div><strong>System Time:</strong> <?php echo date('Y-m-d H:i:s'); ?></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => {
+                button.classList.remove('active');
+                button.classList.remove('bg-blue-600', 'text-white', 'border-blue-500');
+                button.classList.add('border-transparent', 'hover:border-gray-300');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Add active class to clicked tab button
+            event.target.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-500');
+            event.target.classList.remove('border-transparent', 'hover:border-gray-300');
+        }
+
+        // Handle working days checkboxes
+        document.addEventListener('DOMContentLoaded', function() {
+            const workingDaysCheckboxes = document.querySelectorAll('input[name="working_days[]"]');
+            const workingDaysHidden = document.querySelector('input[name="working_days"][type="hidden"]');
+            
+            if (workingDaysCheckboxes.length > 0 && workingDaysHidden) {
+                workingDaysCheckboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        const checkedValues = [];
+                        workingDaysCheckboxes.forEach(cb => {
+                            if (cb.checked) {
+                                checkedValues.push(cb.value);
+                            }
+                        });
+                        workingDaysHidden.value = checkedValues.join(',');
+                    });
+                });
+            }
+        });
+
+        // Form validation
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const requiredFields = form.querySelectorAll('input[required], select[required], textarea[required]');
+                let isValid = true;
+                
+                requiredFields.forEach(field => {
+                    if (!field.value.trim()) {
+                        field.classList.add('border-red-500');
+                        isValid = false;
+                    } else {
+                        field.classList.remove('border-red-500');
+                    }
+                });
+                
+                if (!isValid) {
+                    e.preventDefault();
+                    alert('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
+                }
+            });
+        });
+
+        // Auto-save indication
+        let saveTimeout;
+        document.querySelectorAll('input, select, textarea').forEach(field => {
+            field.addEventListener('change', function() {
+                clearTimeout(saveTimeout);
+                
+                // Show unsaved changes indicator
+                const form = this.closest('form');
+                if (form) {
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.classList.add('bg-yellow-600');
+                        submitBtn.classList.remove('bg-blue-600');
+                        
+                        // Reset after 3 seconds
+                        saveTimeout = setTimeout(() => {
+                            submitBtn.classList.remove('bg-yellow-600');
+                            submitBtn.classList.add('bg-blue-600');
+                        }, 3000);
+                    }
+                }
+            });
+        });
+
+        // Maintenance mode warning
+        const maintenanceCheckbox = document.querySelector('input[name="maintenance_mode"]');
+        if (maintenanceCheckbox) {
+            maintenanceCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    if (!confirm('คุณแน่ใจหรือไม่ที่จะเปิดโหมดบำรุงรักษา?\n\nผู้ใช้งานทั่วไปจะไม่สามารถเข้าถึงระบบได้')) {
+                        this.checked = false;
+                    }
+                }
+            });
+        }
+
+        // Number input validation
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('input', function() {
+                const min = parseInt(this.min);
+                const max = parseInt(this.max);
+                const value = parseInt(this.value);
+                
+                if (value < min) {
+                    this.value = min;
+                } else if (value > max) {
+                    this.value = max;
+                }
+            });
+        });
+
+        // URL validation
+        document.querySelectorAll('input[type="url"]').forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.value && !this.value.match(/^https?:\/\/.+/)) {
+                    this.setCustomValidity('กรุณาใส่ URL ที่ถูกต้อง (ขึ้นต้นด้วย http:// หรือ https://)');
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+        });
+
+        // Email validation
+        document.querySelectorAll('input[type="email"]').forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.value && !this.value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                    this.setCustomValidity('กรุณาใส่อีเมลที่ถูกต้อง');
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
