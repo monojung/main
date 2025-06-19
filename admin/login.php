@@ -244,14 +244,14 @@ if ($_POST) {
                     </button>
                 </form>
 
-                <!-- Demo Account -->
+                <!-- Demo Account 
                 <div class="mt-6 p-4 bg-gray-50 rounded-lg border">
                     <h3 class="text-sm font-semibold text-gray-700 mb-2">🔧 บัญชีทดสอบ:</h3>
                     <div class="text-xs text-gray-600">
                         <div><strong>ผู้ดูแลระบบ:</strong> admin / admin123</div>
                         <div class="text-red-600 mt-1">⚠️ เฉพาะการทดสอบเท่านั้น</div>
                     </div>
-                </div>
+                </div> -->
 
                 <!-- Admin Info -->
                 <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">

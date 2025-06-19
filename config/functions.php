@@ -437,36 +437,5 @@ if (!function_exists('createRequiredTables')) {
             logError("Failed to create required tables: " . $e->getMessage(), __FILE__, __LINE__);
         }
     }
-} NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_user_id (user_id),
-                INDEX idx_token (token),
-                INDEX idx_expires (expires_at),
-                UNIQUE KEY unique_user_type (user_id, type)
-            )
-        ");
-        
-        // Create activity_logs table
-        $conn->exec("
-            CREATE TABLE IF NOT EXISTS activity_logs (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NULL,
-                action VARCHAR(100) NOT NULL,
-                table_name VARCHAR(50) NOT NULL,
-                record_id INT NULL,
-                old_data TEXT NULL,
-                additional_data TEXT NULL,
-                ip_address VARCHAR(45) NULL,
-                user_agent TEXT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_user_id (user_id),
-                INDEX idx_action (action),
-                INDEX idx_created_at (created_at)
-            )
-        ");
-        
-    } catch (Exception $e) {
-        logError("Failed to create required tables: " . $e->getMessage(), __FILE__, __LINE__);
-    }
 }
 ?>

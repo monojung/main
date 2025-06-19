@@ -21,6 +21,51 @@ if ($_POST) {
         if ($action === 'add') {
             $username = sanitizeInput($_POST['username'] ?? '');
             $email = sanitizeInput($_POST['email'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $first_name = sanitizeInput($_POST['first_name'] ?? '');
+            $last_name = sanitizeInput($_POST['last_name'] ?? '');
+            $role = sanitizeInput($_POST['role'] ?? 'staff');
+            $department_id = $_POST['department_id'] ? (int)$_POST['department_id'] : null;
+            $phone = sanitizeInput($_POST['phone'] ?? '');
+            
+            if (empty($username) || empty($email) || empty($password) || empty($first_name) || empty($last_name)) {
+                $error = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน';
+            } elseif (strlen($password) < 6) {
+                $error = 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร';
+            } else {
+                // Check if username or email already exists
+                $stmt = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
+                $stmt->execute(array($username, $email));
+                if ($stmt->fetch()) {
+                    $error = 'ชื่อผู้ใช้หรืออีเมลนี้มีอยู่ในระบบแล้ว';
+                } else {
+                    $password_hash = hashPassword($password);
+                    
+                    $stmt = $conn->prepare("
+                        INSERT INTO users (username, email, password_hash, first_name, last_name, 
+                                         role, department_id, phone, is_active, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+                    ");
+                    
+                    if ($stmt->execute(array(
+                        $username, $email, $password_hash, $first_name, $last_name,
+                        $role, $department_id, $phone
+                    ))) {
+                        $user_id = $conn->lastInsertId();
+                        logActivity($conn, $_SESSION['user_id'], 'user_created', 'users', $user_id, null, array(
+                            'username' => $username,
+                            'role' => $role
+                        ));
+                        $message = 'เพิ่มผู้ใช้ใหม่เรียบร้อยแล้ว';
+                    } else {
+                        $error = 'เกิดข้อผิดพลาดในการบันทึก';
+                    }
+                }
+            }
+        } elseif ($action === 'edit') {
+            $id = (int)($_POST['id'] ?? 0);
+            $username = sanitizeInput($_POST['username'] ?? '');
+            $email = sanitizeInput($_POST['email'] ?? '');
             $first_name = sanitizeInput($_POST['first_name'] ?? '');
             $last_name = sanitizeInput($_POST['last_name'] ?? '');
             $role = sanitizeInput($_POST['role'] ?? 'staff');
@@ -526,6 +571,12 @@ $total_pages = ceil($total_users / $per_page);
                 <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                     <div class="flex-1 flex justify-between sm:hidden">
                         <?php if ($page > 1): ?>
+                        <a href="?page=<?php echo $page - 1; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
+                           class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            ก่อนหน้า
+                        </a>
+                        <?php endif; ?>
+                        <?php if ($page < $total_pages): ?>
                         <a href="?page=<?php echo $page + 1; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
                            class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                             ถัดไป
@@ -810,55 +861,4 @@ $total_pages = ceil($total_users / $per_page);
         });
     </script>
 </body>
-</html>page - 1; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
-                           class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                            ก่อนหน้า
-                        </a>
-                        <?php endif; ?>
-                        <?php if ($page < $total_pages): ?>
-                        <a href="?page=<?php echo $Input($_POST['email'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $first_name = sanitizeInput($_POST['first_name'] ?? '');
-            $last_name = sanitizeInput($_POST['last_name'] ?? '');
-            $role = sanitizeInput($_POST['role'] ?? 'staff');
-            $department_id = $_POST['department_id'] ? (int)$_POST['department_id'] : null;
-            $phone = sanitizeInput($_POST['phone'] ?? '');
-            
-            if (empty($username) || empty($email) || empty($password) || empty($first_name) || empty($last_name)) {
-                $error = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน';
-            } elseif (strlen($password) < 6) {
-                $error = 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร';
-            } else {
-                // Check if username or email already exists
-                $stmt = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
-                $stmt->execute(array($username, $email));
-                if ($stmt->fetch()) {
-                    $error = 'ชื่อผู้ใช้หรืออีเมลนี้มีอยู่ในระบบแล้ว';
-                } else {
-                    $password_hash = hashPassword($password);
-                    
-                    $stmt = $conn->prepare("
-                        INSERT INTO users (username, email, password_hash, first_name, last_name, 
-                                         role, department_id, phone, is_active, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
-                    ");
-                    
-                    if ($stmt->execute(array(
-                        $username, $email, $password_hash, $first_name, $last_name,
-                        $role, $department_id, $phone
-                    ))) {
-                        $user_id = $conn->lastInsertId();
-                        logActivity($conn, $_SESSION['user_id'], 'user_created', 'users', $user_id, null, array(
-                            'username' => $username,
-                            'role' => $role
-                        ));
-                        $message = 'เพิ่มผู้ใช้ใหม่เรียบร้อยแล้ว';
-                    } else {
-                        $error = 'เกิดข้อผิดพลาดในการบันทึก';
-                    }
-                }
-            }
-        } elseif ($action === 'edit') {
-            $id = (int)($_POST['id'] ?? 0);
-            $username = sanitizeInput($_POST['username'] ?? '');
-            $email = sanitize
+</html>

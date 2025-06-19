@@ -289,7 +289,7 @@ if ($_POST) {
                         <span class="font-mono">nurse1 / nurse123</span>
                     </div>
                 </div>
-            </div>
+            </div> 
 
             <!-- System Status -->
             <div class="mt-6 text-center">
