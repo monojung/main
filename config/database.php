@@ -349,32 +349,7 @@ function setSetting($conn, $key, $value, $type = 'string', $description = '') {
     }
 }
 
-// Rate limiting for login attempts
-function checkRateLimit($identifier, $max_attempts = 5, $window_minutes = 15) {
-    $cache_key = "rate_limit_" . md5($identifier);
-    $cache_file = sys_get_temp_dir() . "/" . $cache_key;
-    
-    $attempts = [];
-    if (file_exists($cache_file)) {
-        $attempts = json_decode(file_get_contents($cache_file), true) ?: [];
-    }
-    
-    // Remove old attempts outside the window
-    $window_start = time() - ($window_minutes * 60);
-    $attempts = array_filter($attempts, function($timestamp) use ($window_start) {
-        return $timestamp > $window_start;
-    });
-    
-    if (count($attempts) >= $max_attempts) {
-        return false; // Rate limit exceeded
-    }
-    
-    // Add current attempt
-    $attempts[] = time();
-    file_put_contents($cache_file, json_encode($attempts));
-    
-    return true;
-}
+// Note: checkRateLimit function is now in includes/auth.php to avoid duplicate declaration
 
 // Initialize secure session
 if (php_sapi_name() !== 'cli') {
