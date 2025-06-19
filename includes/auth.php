@@ -1,6 +1,6 @@
 <?php
 /**
- * Authentication and Authorization Middleware
+ * Authentication and Authorization Middleware - ปรับปรุงแล้ว
  * โรงพยาบาลทุ่งหัวช้าง จังหวัดลำพูน
  */
 
@@ -36,8 +36,15 @@ function hasRole($role) {
  */
 function requireLogin($redirect_url = '../login.php') {
     if (!isLoggedIn()) {
-        header("Location: $redirect_url");
-        exit();
+        // Store the current URL for redirect after login
+        $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'] ?? '';
+        redirectTo($redirect_url);
+    }
+    
+    // Check session validity
+    if (!validateSession()) {
+        destroySession();
+        redirectTo($redirect_url);
     }
 }
 
@@ -51,18 +58,20 @@ function requireRole($required_roles, $redirect_url = '../login.php') {
         // Log unauthorized access attempt
         if (function_exists('logError')) {
             logError("Unauthorized access attempt by user ID: " . ($_SESSION['user_id'] ?? 'unknown') . 
-                    " to page: " . $_SERVER['REQUEST_URI'], __FILE__, __LINE__);
+                    " to page: " . $_SERVER['REQUEST_URI'] . 
+                    " Required roles: " . (is_array($required_roles) ? implode(',', $required_roles) : $required_roles), 
+                    __FILE__, __LINE__);
         }
         
-        header("Location: $redirect_url");
-        exit();
+        // Show access denied page instead of redirect
+        showAccessDenied();
     }
 }
 
 /**
  * Require admin role
  */
-function requireAdmin($redirect_url = '../login.php') {
+function requireAdmin($redirect_url = '../admin/login.php') {
     requireRole('admin', $redirect_url);
 }
 
@@ -90,7 +99,8 @@ function getCurrentUser() {
         'username' => $_SESSION['username'] ?? null,
         'name' => $_SESSION['user_name'] ?? null,
         'role' => $_SESSION['user_role'] ?? null,
-        'department_id' => $_SESSION['department_id'] ?? null
+        'department_id' => $_SESSION['department_id'] ?? null,
+        'login_time' => $_SESSION['login_time'] ?? null
     ];
 }
 
@@ -120,18 +130,18 @@ function canAccess($resource, $action = 'read') {
         'patients' => [
             'admin' => ['create', 'read', 'update', 'delete'],
             'doctor' => ['create', 'read', 'update'],
-            'nurse' => ['read'],
+            'nurse' => ['read', 'update'],
             'staff' => ['read']
         ],
         'visits' => [
             'admin' => ['create', 'read', 'update', 'delete'],
             'doctor' => ['create', 'read', 'update'],
-            'nurse' => ['read'],
+            'nurse' => ['read', 'update'],
             'staff' => ['read']
         ],
         'users' => [
             'admin' => ['create', 'read', 'update', 'delete'],
-            'doctor' => [],
+            'doctor' => ['read'],
             'nurse' => [],
             'staff' => []
         ],
@@ -157,6 +167,105 @@ function canAccess($resource, $action = 'read') {
 }
 
 /**
+ * Validate session integrity
+ */
+function validateSession() {
+    // Check if required session variables exist
+    $required_vars = ['user_id', 'username', 'user_role', 'login_time'];
+    foreach ($required_vars as $var) {
+        if (!isset($_SESSION[$var])) {
+            return false;
+        }
+    }
+    
+    // Check session timeout (2 hours default)
+    $timeout = 2 * 60 * 60; // 2 hours
+    if (isset($_SESSION['login_time']) && (time() - $_SESSION['login_time']) > $timeout) {
+        return false;
+    }
+    
+    // Check IP consistency (optional - can cause issues with dynamic IPs)
+    if (isset($_SESSION['user_ip']) && isset($_SERVER['REMOTE_ADDR'])) {
+        if ($_SESSION['user_ip'] !== $_SERVER['REMOTE_ADDR']) {
+            // Log potential session hijacking
+            if (function_exists('logError')) {
+                logError("Potential session hijacking detected. Session IP: " . $_SESSION['user_ip'] . 
+                        ", Current IP: " . $_SERVER['REMOTE_ADDR'], __FILE__, __LINE__);
+            }
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Destroy session securely
+ */
+function destroySession() {
+    // Log logout
+    if (isLoggedIn() && function_exists('logActivity')) {
+        try {
+            require_once __DIR__ . '/../config/database.php';
+            $db = new Database();
+            $conn = $db->getConnection();
+            logActivity($conn, $_SESSION['user_id'], 'session_destroyed', 'users', $_SESSION['user_id']);
+        } catch (Exception $e) {
+            // Silent fail
+        }
+    }
+    
+    // Clear all session data
+    $_SESSION = array();
+    
+    // Delete session cookie
+    if (isset($_COOKIE[session_name()])) {
+        setcookie(session_name(), '', time() - 3600, '/');
+    }
+    
+    // Destroy session
+    session_destroy();
+}
+
+/**
+ * Show access denied page
+ */
+function showAccessDenied() {
+    http_response_code(403);
+    ?>
+    <!DOCTYPE html>
+    <html lang="th">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ไม่มีสิทธิ์เข้าถึง - โรงพยาบาลทุ่งหัวช้าง</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>body { font-family: 'Sarabun', sans-serif; }</style>
+    </head>
+    <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+        <div class="text-center">
+            <div class="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span class="text-4xl">🚫</span>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">ไม่มีสิทธิ์เข้าถึง</h1>
+            <p class="text-gray-600 mb-6">คุณไม่มีสิทธิ์เข้าถึงหน้านี้</p>
+            <div class="space-x-4">
+                <a href="javascript:history.back()" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700">
+                    กลับ
+                </a>
+                <a href="../index.php" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                    หน้าหลัก
+                </a>
+            </div>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit();
+}
+
+/**
  * Log security event
  */
 function logSecurityEvent($event, $details = '') {
@@ -177,7 +286,7 @@ function logSecurityEvent($event, $details = '') {
             'details' => $details,
             'url' => $_SERVER['REQUEST_URI'] ?? '',
             'referer' => $_SERVER['HTTP_REFERER'] ?? ''
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
         
         $stmt->execute([
             $user_id,
@@ -205,8 +314,7 @@ function checkSessionTimeout($timeout_minutes = 120) {
         if (time() - $_SESSION['last_activity'] > $timeout_seconds) {
             // Session timed out
             logSecurityEvent('session_timeout');
-            session_unset();
-            session_destroy();
+            destroySession();
             return false;
         }
     }
@@ -222,61 +330,6 @@ function regenerateSession() {
     if (isLoggedIn()) {
         session_regenerate_id(true);
     }
-}
-
-/**
- * Check if IP is allowed (optional security feature)
- */
-function checkAllowedIP() {
-    // Define allowed IP ranges for admin access
-    $allowed_ips = [
-        '127.0.0.1',      // localhost
-        '::1',            // localhost IPv6
-        '192.168.1.0/24', // local network
-        '10.0.0.0/8'      // private network
-    ];
-    
-    $user_ip = $_SERVER['REMOTE_ADDR'] ?? '';
-    
-    // For admin users, check IP restrictions
-    if (hasRole('admin')) {
-        foreach ($allowed_ips as $allowed) {
-            if (strpos($allowed, '/') !== false) {
-                // CIDR notation
-                if (ipInRange($user_ip, $allowed)) {
-                    return true;
-                }
-            } else {
-                // Exact IP match
-                if ($user_ip === $allowed) {
-                    return true;
-                }
-            }
-        }
-        
-        // Log suspicious admin access
-        logSecurityEvent('admin_access_from_restricted_ip', "IP: $user_ip");
-        return false;
-    }
-    
-    return true; // Allow all IPs for non-admin users
-}
-
-/**
- * Check if IP is in range (CIDR notation)
- */
-function ipInRange($ip, $range) {
-    if (strpos($range, '/') === false) {
-        return $ip === $range;
-    }
-    
-    list($subnet, $bits) = explode('/', $range);
-    $ip_long = ip2long($ip);
-    $subnet_long = ip2long($subnet);
-    $mask = -1 << (32 - $bits);
-    $subnet_long &= $mask;
-    
-    return ($ip_long & $mask) === $subnet_long;
 }
 
 /**
@@ -321,13 +374,73 @@ function setSecurityHeaders() {
     // XSS protection
     header('X-XSS-Protection: 1; mode=block');
     
+    // Referrer policy
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    
     // Strict transport security (HTTPS only)
     if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
         header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
     }
     
     // Content Security Policy
-    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com; font-src 'self' https://fonts.gstatic.com");
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'");
+}
+
+/**
+ * Check for suspicious activity
+ */
+function checkSuspiciousActivity() {
+    if (!isLoggedIn()) {
+        return;
+    }
+    
+    $suspicious = false;
+    $reasons = [];
+    
+    // Check for rapid page requests
+    if (!isset($_SESSION['page_requests'])) {
+        $_SESSION['page_requests'] = [];
+    }
+    
+    $_SESSION['page_requests'][] = time();
+    
+    // Keep only requests from last minute
+    $_SESSION['page_requests'] = array_filter($_SESSION['page_requests'], function($time) {
+        return $time > (time() - 60);
+    });
+    
+    // More than 60 requests per minute is suspicious
+    if (count($_SESSION['page_requests']) > 60) {
+        $suspicious = true;
+        $reasons[] = 'excessive_requests';
+    }
+    
+    // Check for user agent changes
+    if (isset($_SESSION['user_agent']) && isset($_SERVER['HTTP_USER_AGENT'])) {
+        if ($_SESSION['user_agent'] !== $_SERVER['HTTP_USER_AGENT']) {
+            $suspicious = true;
+            $reasons[] = 'user_agent_change';
+        }
+    }
+    
+    if ($suspicious) {
+        logSecurityEvent('suspicious_activity', implode(',', $reasons));
+        
+        // For high-risk activity, destroy session
+        if (in_array('user_agent_change', $reasons)) {
+            destroySession();
+            redirectTo('../login.php');
+        }
+    }
+}
+
+/**
+ * Update last activity time
+ */
+function updateLastActivity() {
+    if (isLoggedIn()) {
+        $_SESSION['last_activity'] = time();
+    }
 }
 
 // Auto-apply security measures
@@ -335,11 +448,19 @@ if (!headers_sent()) {
     setSecurityHeaders();
 }
 
-// Check session timeout automatically
+// Check session timeout and suspicious activity automatically
 if (isLoggedIn()) {
     if (!checkSessionTimeout()) {
-        header('Location: ' . ($_SERVER['SCRIPT_NAME'] === '/login.php' ? 'login.php' : '../login.php'));
-        exit();
+        redirectTo(($_SERVER['SCRIPT_NAME'] === '/admin/login.php') ? 'login.php' : '../login.php');
+    }
+    
+    checkSuspiciousActivity();
+    updateLastActivity();
+    
+    // Regenerate session ID periodically for security
+    if (!isset($_SESSION['last_regeneration']) || (time() - $_SESSION['last_regeneration']) > 1800) {
+        regenerateSession();
+        $_SESSION['last_regeneration'] = time();
     }
 }
 ?>

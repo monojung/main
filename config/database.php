@@ -1,6 +1,6 @@
 <?php
 /**
- * Database Configuration
+ * Database Configuration - ปรับปรุงแล้ว
  * โรงพยาบาลทุ่งหัวช้าง จังหวัดลำพูน
  */
 
@@ -18,8 +18,16 @@ define('DB_CHARSET', 'utf8mb4');
 
 // Site configuration
 define('SITE_NAME', 'โรงพยาบาลทุ่งหัวช้าง');
-define('SITE_URL', 'https://www.thchospital.go.th');
+define('SITE_URL', 'http://localhost/hospital'); // เปลี่ยนตาม URL ของคุณ
 define('ADMIN_EMAIL', 'admin@thchospital.go.th');
+
+// Timezone setting
+date_default_timezone_set('Asia/Bangkok');
+
+// Error reporting (ปิดในโปรดักชัน)
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
 // Database connection class
 class Database {
@@ -38,12 +46,22 @@ class Database {
             $this->conn = new PDO($dsn, $this->username, $this->password);
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+            $this->conn->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
         } catch(PDOException $exception) {
             error_log("Connection error: " . $exception->getMessage());
-            echo "Database connection failed.";
+            die("ไม่สามารถเชื่อมต่อฐานข้อมูลได้ กรุณาติดต่อผู้ดูแลระบบ");
         }
 
         return $this->conn;
+    }
+    
+    public function testConnection() {
+        try {
+            $conn = $this->getConnection();
+            return $conn !== null;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 }
 
@@ -96,6 +114,7 @@ function redirectTo($url) {
         exit();
     } else {
         echo "<script>window.location.href='$url';</script>";
+        echo "<noscript><meta http-equiv='refresh' content='0;url=$url'></noscript>";
         exit();
     }
 }
@@ -131,14 +150,8 @@ function startSecureSession() {
         if (!isset($_SESSION['initiated'])) {
             session_regenerate_id(true);
             $_SESSION['initiated'] = true;
-            $_SESSION['user_ip'] = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
-            $_SESSION['user_agent'] = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
-        }
-        
-        // Validate session
-        if (isset($_SESSION['user_ip']) && $_SESSION['user_ip'] !== (isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '')) {
-            session_destroy();
-            return false;
+            $_SESSION['user_ip'] = $_SERVER['REMOTE_ADDR'] ?? '';
+            $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
         }
     }
     return true;
@@ -158,39 +171,28 @@ function validateCSRFToken($token) {
 
 // Password utilities
 function hashPassword($password) {
-    return password_hash($password, PASSWORD_DEFAULT);
+    return password_hash($password, PASSWORD_DEFAULT, ['cost' => 12]);
 }
 
 function verifyPassword($password, $hash) {
     return password_verify($password, $hash);
 }
 
-// Email configuration
-define('SMTP_HOST', 'smtp.gmail.com');
-define('SMTP_PORT', 587);
-define('SMTP_USER', 'noreply@thchospital.go.th');
-define('SMTP_PASS', 'your_email_password');
-
-// File upload settings
-define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5MB
-define('ALLOWED_FILE_TYPES', array('jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'));
-define('UPLOAD_PATH', 'uploads/');
-
 // Hospital specific settings
 $hospital_departments = array(
-    'general' => 'แพทย์ทั่วไป',
-    'pediatric' => 'กุมารเวชกรรม',
-    'obstetric' => 'สูติ-นรีเวชกรรม',
-    'surgery' => 'ศัลยกรรม',
-    'orthopedic' => 'ออร์โธปิดิกส์',
-    'dental' => 'ทันตกรรม',
-    'emergency' => 'แผนกฉุกเฉิน',
-    'lab' => 'ห้องปฏิบัติการ'
+    'GEN' => 'แพทย์ทั่วไป',
+    'PED' => 'กุมารเวชกรรม',
+    'OBS' => 'สูติ-นรีเวชกรรม',
+    'SUR' => 'ศัลยกรรม',
+    'ORT' => 'ออร์โธปิดิกส์',
+    'DEN' => 'ทันตกรรม',
+    'EMR' => 'แผนกฉุกเฉิน',
+    'LAB' => 'ห้องปฏิบัติการ'
 );
 
 $appointment_times = array(
-    '08:00', '09:00', '10:00', '11:00',
-    '13:00', '14:00', '15:00', '16:00'
+    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+    '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30'
 );
 
 // Hospital contact information
@@ -198,10 +200,10 @@ $hospital_info = array(
     'name' => 'โรงพยาบาลทุ่งหัวช้าง',
     'name_en' => 'Tung Hua Chang Hospital',
     'address' => '123 ถนนหลัก ตำบลทุ่งหัวช้าง อำเภอเมือง จังหวัดลำพูน 51000',
-    'phone' => '053-580-xxx',
-    'fax' => '053-580-xxx',
+    'phone' => '053-580-100',
+    'fax' => '053-580-110',
     'email' => 'info@thchospital.go.th',
-    'emergency' => '053-580-xxx',
+    'emergency' => '053-580-999',
     'website' => 'https://www.thchospital.go.th'
 );
 
@@ -210,13 +212,6 @@ $operating_hours = array(
     'weekday' => array('start' => '08:00', 'end' => '16:30'),
     'weekend' => array('start' => '08:00', 'end' => '12:00'),
     'emergency' => '24 ชั่วโมง'
-);
-
-// Social media links
-$social_media = array(
-    'facebook' => 'https://facebook.com/thchospital',
-    'line' => '@thchospital',
-    'youtube' => 'https://youtube.com/thchospital'
 );
 
 // Activity logging function
@@ -239,40 +234,12 @@ function logActivity($conn, $user_id, $action, $table_name = '', $record_id = nu
             $record_id,
             $old_values_json,
             $new_values_json,
-            isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
-            isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : ''
+            $_SERVER['REMOTE_ADDR'] ?? '',
+            $_SERVER['HTTP_USER_AGENT'] ?? ''
         ));
     } catch (Exception $e) {
         logError("Failed to log activity: " . $e->getMessage());
         return false;
-    }
-}
-
-// Get department by code
-function getDepartmentByCode($conn, $code) {
-    try {
-        if (!$conn) return null;
-        
-        $stmt = $conn->prepare("SELECT * FROM departments WHERE code = ? AND is_active = 1");
-        $stmt->execute(array($code));
-        return $stmt->fetch();
-    } catch (Exception $e) {
-        logError("Failed to get department: " . $e->getMessage());
-        return null;
-    }
-}
-
-// Get department by ID
-function getDepartmentById($conn, $id) {
-    try {
-        if (!$conn) return null;
-        
-        $stmt = $conn->prepare("SELECT * FROM departments WHERE id = ? AND is_active = 1");
-        $stmt->execute(array($id));
-        return $stmt->fetch();
-    } catch (Exception $e) {
-        logError("Failed to get department: " . $e->getMessage());
-        return null;
     }
 }
 
@@ -304,25 +271,30 @@ function generateAppointmentNumber($conn, $department_id) {
     }
 }
 
-// Generate patient ID
-function generatePatientId($conn) {
+// Get department by ID
+function getDepartmentById($conn, $id) {
     try {
         if (!$conn) return null;
         
-        $year = date('Y');
-        
-        $stmt = $conn->prepare("
-            SELECT COUNT(*) as count FROM patients 
-            WHERE YEAR(created_at) = ?
-        ");
-        $stmt->execute(array($year));
-        $result = $stmt->fetch();
-        
-        $num = str_pad($result['count'] + 1, 6, '0', STR_PAD_LEFT);
-        return 'P' . $year . $num;
-        
+        $stmt = $conn->prepare("SELECT * FROM departments WHERE id = ? AND is_active = 1");
+        $stmt->execute(array($id));
+        return $stmt->fetch();
     } catch (Exception $e) {
-        logError("Failed to generate patient ID: " . $e->getMessage());
+        logError("Failed to get department: " . $e->getMessage());
+        return null;
+    }
+}
+
+// Get department by code
+function getDepartmentByCode($conn, $code) {
+    try {
+        if (!$conn) return null;
+        
+        $stmt = $conn->prepare("SELECT * FROM departments WHERE code = ? AND is_active = 1");
+        $stmt->execute(array($code));
+        return $stmt->fetch();
+    } catch (Exception $e) {
+        logError("Failed to get department: " . $e->getMessage());
         return null;
     }
 }
@@ -362,8 +334,8 @@ function setSetting($conn, $key, $value, $type = 'string', $description = '') {
         if (!$conn) return false;
         
         $stmt = $conn->prepare("
-            INSERT INTO settings (setting_key, setting_value, setting_type, description) 
-            VALUES (?, ?, ?, ?)
+            INSERT INTO settings (setting_key, setting_value, setting_type, description, updated_at) 
+            VALUES (?, ?, ?, ?, NOW())
             ON DUPLICATE KEY UPDATE 
             setting_value = VALUES(setting_value),
             setting_type = VALUES(setting_type),
@@ -377,8 +349,45 @@ function setSetting($conn, $key, $value, $type = 'string', $description = '') {
     }
 }
 
-// Initialize secure session only if not in CLI mode
+// Rate limiting for login attempts
+function checkRateLimit($identifier, $max_attempts = 5, $window_minutes = 15) {
+    $cache_key = "rate_limit_" . md5($identifier);
+    $cache_file = sys_get_temp_dir() . "/" . $cache_key;
+    
+    $attempts = [];
+    if (file_exists($cache_file)) {
+        $attempts = json_decode(file_get_contents($cache_file), true) ?: [];
+    }
+    
+    // Remove old attempts outside the window
+    $window_start = time() - ($window_minutes * 60);
+    $attempts = array_filter($attempts, function($timestamp) use ($window_start) {
+        return $timestamp > $window_start;
+    });
+    
+    if (count($attempts) >= $max_attempts) {
+        return false; // Rate limit exceeded
+    }
+    
+    // Add current attempt
+    $attempts[] = time();
+    file_put_contents($cache_file, json_encode($attempts));
+    
+    return true;
+}
+
+// Initialize secure session
 if (php_sapi_name() !== 'cli') {
     startSecureSession();
+}
+
+// Test database connection on include
+try {
+    $test_db = new Database();
+    if (!$test_db->testConnection()) {
+        error_log("Database connection test failed");
+    }
+} catch (Exception $e) {
+    error_log("Database test error: " . $e->getMessage());
 }
 ?>
