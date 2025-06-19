@@ -12,38 +12,33 @@ $db = new Database();
 $conn = $db->getConnection();
 
 try {
-    // Count appointments today
-    $today = date('Y-m-d');
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM appointments WHERE appointment_date = ?");
-    $stmt->execute([$today]);
-    $appointments_today = $stmt->fetch()['count'];
-
-    // Count total appointments this month
-    $this_month = date('Y-m');
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM appointments WHERE appointment_date LIKE ?");
-    $stmt->execute([$this_month . '%']);
-    $appointments_month = $stmt->fetch()['count'];
-
-    // Count pending appointments
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM appointments WHERE status = 'pending'");
+    // Count total patients
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM patients WHERE is_active = 1");
     $stmt->execute();
-    $pending_appointments = $stmt->fetch()['count'];
+    $total_patients = $stmt->fetch()['count'];
+
+    // Count total visits this month
+    $this_month = date('Y-m');
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM visits WHERE visit_date LIKE ?");
+    $stmt->execute([$this_month . '%']);
+    $visits_month = $stmt->fetch()['count'];
 
     // Count total departments
     $stmt = $conn->prepare("SELECT COUNT(*) as count FROM departments WHERE is_active = 1");
     $stmt->execute();
     $total_departments = $stmt->fetch()['count'];
 
-    // Recent appointments with department info
+    // Recent visits with department info
     $stmt = $conn->prepare("
-        SELECT a.*, d.name as department_name 
-        FROM appointments a 
-        LEFT JOIN departments d ON a.department_id = d.id 
-        ORDER BY a.created_at DESC 
+        SELECT v.*, d.name as department_name, p.first_name, p.last_name 
+        FROM visits v 
+        LEFT JOIN departments d ON v.department_id = d.id 
+        LEFT JOIN patients p ON v.patient_id = p.id
+        ORDER BY v.created_at DESC 
         LIMIT 10
     ");
     $stmt->execute();
-    $recent_appointments = $stmt->fetchAll();
+    $recent_visits = $stmt->fetchAll();
 
     // System statistics
     $stats = [
@@ -55,8 +50,8 @@ try {
 
 } catch (Exception $e) {
     logError($e->getMessage(), __FILE__, __LINE__);
-    $appointments_today = $appointments_month = $pending_appointments = $total_departments = 0;
-    $recent_appointments = [];
+    $total_patients = $visits_month = $total_departments = 0;
+    $recent_visits = [];
     $stats = ['total_users' => 0, 'total_patients' => 0, 'total_doctors' => 0, 'total_visits' => 0];
 }
 ?>
@@ -103,11 +98,11 @@ try {
                     <a href="dashboard.php" class="block py-2 px-4 text-blue-600 bg-blue-50 rounded font-medium">
                         📊 แดชบอร์ด
                     </a>
-                    <a href="appointments.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        📅 จัดการนัดหมาย
-                    </a>
                     <a href="patients.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
                         👥 ข้อมูลผู้ป่วย
+                    </a>
+                    <a href="visits.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                        🏥 การรักษา
                     </a>
                     <a href="doctors.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
                         👨‍⚕️ จัดการแพทย์
@@ -150,40 +145,40 @@ try {
             <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div class="bg-white rounded-lg shadow-lg p-6">
                     <div class="flex items-center">
-                        <div class="text-3xl text-blue-600 mr-4">📅</div>
+                        <div class="text-3xl text-blue-600 mr-4">👥</div>
                         <div>
-                            <h3 class="text-2xl font-bold text-gray-800"><?php echo number_format($appointments_today); ?></h3>
-                            <p class="text-gray-600">นัดหมายวันนี้</p>
+                            <h3 class="text-2xl font-bold text-gray-800"><?php echo number_format($total_patients); ?></h3>
+                            <p class="text-gray-600">ผู้ป่วยทั้งหมด</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="bg-white rounded-lg shadow-lg p-6">
                     <div class="flex items-center">
-                        <div class="text-3xl text-green-600 mr-4">📊</div>
+                        <div class="text-3xl text-green-600 mr-4">🏥</div>
                         <div>
-                            <h3 class="text-2xl font-bold text-gray-800"><?php echo number_format($appointments_month); ?></h3>
-                            <p class="text-gray-600">นัดหมายเดือนนี้</p>
+                            <h3 class="text-2xl font-bold text-gray-800"><?php echo number_format($visits_month); ?></h3>
+                            <p class="text-gray-600">การรักษาเดือนนี้</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="bg-white rounded-lg shadow-lg p-6">
                     <div class="flex items-center">
-                        <div class="text-3xl text-yellow-600 mr-4">⏳</div>
-                        <div>
-                            <h3 class="text-2xl font-bold text-gray-800"><?php echo number_format($pending_appointments); ?></h3>
-                            <p class="text-gray-600">รอการยืนยัน</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <div class="flex items-center">
-                        <div class="text-3xl text-red-600 mr-4">🏥</div>
+                        <div class="text-3xl text-purple-600 mr-4">🏢</div>
                         <div>
                             <h3 class="text-2xl font-bold text-gray-800"><?php echo number_format($total_departments); ?></h3>
                             <p class="text-gray-600">แผนกทั้งหมด</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <div class="flex items-center">
+                        <div class="text-3xl text-orange-600 mr-4">👨‍⚕️</div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800"><?php echo number_format($stats['total_doctors']); ?></h3>
+                            <p class="text-gray-600">แพทย์ทั้งหมด</p>
                         </div>
                     </div>
                 </div>
@@ -233,50 +228,47 @@ try {
             </div>
 
             <div class="grid lg:grid-cols-2 gap-8">
-                <!-- Recent Appointments -->
+                <!-- Recent Visits -->
                 <div class="bg-white rounded-lg shadow-lg">
                     <div class="p-6 border-b border-gray-200">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-xl font-semibold text-gray-800">นัดหมายล่าสุด</h3>
-                            <a href="appointments.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">ดูทั้งหมด →</a>
+                            <h3 class="text-xl font-semibold text-gray-800">การรักษาล่าสุด</h3>
+                            <a href="visits.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium">ดูทั้งหมด →</a>
                         </div>
                     </div>
                     <div class="p-6">
-                        <?php if (empty($recent_appointments)): ?>
-                            <p class="text-gray-500 text-center py-8">ไม่มีข้อมูลนัดหมาย</p>
+                        <?php if (empty($recent_visits)): ?>
+                            <p class="text-gray-500 text-center py-8">ไม่มีข้อมูลการรักษา</p>
                         <?php else: ?>
                             <div class="space-y-4">
-                                <?php foreach ($recent_appointments as $appointment): ?>
+                                <?php foreach ($recent_visits as $visit): ?>
                                 <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                                     <div>
-                                        <h4 class="font-medium text-gray-800"><?php echo htmlspecialchars($appointment['patient_name']); ?></h4>
+                                        <h4 class="font-medium text-gray-800">
+                                            <?php echo htmlspecialchars($visit['first_name'] . ' ' . $visit['last_name']); ?>
+                                        </h4>
                                         <p class="text-sm text-gray-600">
-                                            <?php echo htmlspecialchars($appointment['department_name'] ?? 'ไม่ระบุแผนก'); ?> | 
-                                            <?php echo formatThaiDate($appointment['appointment_date']); ?> 
-                                            <?php echo $appointment['appointment_time']; ?>
+                                            <?php echo htmlspecialchars($visit['department_name'] ?? 'ไม่ระบุแผนก'); ?> | 
+                                            <?php echo formatThaiDate($visit['visit_date']); ?>
                                         </p>
                                         <p class="text-xs text-gray-500">
-                                            📞 <?php echo htmlspecialchars($appointment['patient_phone']); ?>
+                                            เลขที่: <?php echo htmlspecialchars($visit['visit_number']); ?>
                                         </p>
                                     </div>
                                     <div>
                                         <?php
                                         $status_colors = [
-                                            'pending' => 'bg-yellow-100 text-yellow-800',
-                                            'confirmed' => 'bg-green-100 text-green-800',
-                                            'cancelled' => 'bg-red-100 text-red-800',
-                                            'completed' => 'bg-blue-100 text-blue-800',
-                                            'no_show' => 'bg-gray-100 text-gray-800'
+                                            'active' => 'bg-blue-100 text-blue-800',
+                                            'completed' => 'bg-green-100 text-green-800',
+                                            'cancelled' => 'bg-red-100 text-red-800'
                                         ];
                                         $status_text = [
-                                            'pending' => 'รอยืนยัน',
-                                            'confirmed' => 'ยืนยันแล้ว',
-                                            'cancelled' => 'ยกเลิก',
+                                            'active' => 'กำลังรักษา',
                                             'completed' => 'เสร็จสิ้น',
-                                            'no_show' => 'ไม่มาตามนัด'
+                                            'cancelled' => 'ยกเลิก'
                                         ];
-                                        $color = $status_colors[$appointment['status']] ?? 'bg-gray-100 text-gray-800';
-                                        $text = $status_text[$appointment['status']] ?? $appointment['status'];
+                                        $color = $status_colors[$visit['status']] ?? 'bg-gray-100 text-gray-800';
+                                        $text = $status_text[$visit['status']] ?? $visit['status'];
                                         ?>
                                         <span class="px-3 py-1 rounded-full text-xs font-medium <?php echo $color; ?>">
                                             <?php echo $text; ?>
@@ -296,14 +288,14 @@ try {
                     </div>
                     <div class="p-6">
                         <div class="grid grid-cols-2 gap-4">
-                            <a href="appointments.php?action=add" class="bg-blue-600 text-white p-4 rounded-lg text-center hover:bg-blue-700 transition duration-300">
-                                <div class="text-2xl mb-2">➕</div>
-                                <div class="font-medium">เพิ่มนัดหมาย</div>
-                            </a>
-                            
-                            <a href="patients.php?action=add" class="bg-green-600 text-white p-4 rounded-lg text-center hover:bg-green-700 transition duration-300">
+                            <a href="patients.php?action=add" class="bg-blue-600 text-white p-4 rounded-lg text-center hover:bg-blue-700 transition duration-300">
                                 <div class="text-2xl mb-2">👤</div>
                                 <div class="font-medium">เพิ่มผู้ป่วย</div>
+                            </a>
+                            
+                            <a href="visits.php?action=add" class="bg-green-600 text-white p-4 rounded-lg text-center hover:bg-green-700 transition duration-300">
+                                <div class="text-2xl mb-2">🏥</div>
+                                <div class="font-medium">บันทึกการรักษา</div>
                             </a>
                             
                             <a href="news.php?action=add" class="bg-purple-600 text-white p-4 rounded-lg text-center hover:bg-purple-700 transition duration-300">
@@ -334,7 +326,7 @@ try {
                             
                             <div class="text-center">
                                 <div class="text-3xl text-green-600 mb-2">✅</div>
-                                <h4 class="font-medium text-gray-800">ระบบนัดหมาย</h4>
+                                <h4 class="font-medium text-gray-800">ระบบผู้ป่วย</h4>
                                 <p class="text-sm text-green-600">ทำงานปกติ</p>
                             </div>
                             
@@ -401,21 +393,20 @@ try {
                 </div>
             </div>
 
-            <!-- Pending Tasks Alert -->
-            <?php if ($pending_appointments > 0): ?>
-            <div class="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div class="flex items-center">
-                    <span class="text-yellow-600 text-xl mr-2">⚠️</span>
-                    <h4 class="font-semibold text-yellow-800">งานที่ต้องดำเนินการ</h4>
+            <!-- System Notifications -->
+            <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-center space-x-2">
+                    <span class="text-blue-600 text-xl">📢</span>
+                    <h4 class="font-semibold text-blue-800">การแจ้งเตือนระบบ</h4>
                 </div>
-                <div class="mt-2 text-sm text-yellow-700">
-                    <p>• มีนัดหมายรอการยืนยัน <?php echo number_format($pending_appointments); ?> รายการ</p>
-                    <a href="appointments.php?status=pending" class="text-yellow-800 underline hover:text-yellow-900">
-                        ไปจัดการนัดหมาย →
-                    </a>
+                <div class="mt-2 text-sm text-blue-700">
+                    <ul class="space-y-1">
+                        <li>• ระบบทำงานปกติ ไม่มีปัญหาการเชื่อมต่อ</li>
+                        <li>• อัพเดทล่าสุด: วันนี้ เวลา 08:00 น.</li>
+                        <li>• หากพบปัญหา กรุณาติดต่อแผนก IT</li>
+                    </ul>
                 </div>
             </div>
-            <?php endif; ?>
         </main>
     </div>
 
@@ -437,18 +428,6 @@ try {
         setTimeout(function() {
             location.reload();
         }, 300000);
-
-        // Show notification for pending appointments
-        <?php if ($pending_appointments > 0): ?>
-        setTimeout(function() {
-            if (confirm('มีนัดหมายรอการยืนยัน <?php echo $pending_appointments; ?> รายการ ต้องการดูหรือไม่?')) {
-                window.location.href = 'appointments.php?status=pending';
-            }
-        }, 3000);
-        <?php endif; ?>
-
-        // Chart.js integration (if needed)
-        // You can add charts here using Chart.js library
     </script>
 </body>
 </html>

@@ -114,7 +114,7 @@ include 'includes/header.php';
             <p class="text-lg mb-8 max-w-2xl mx-auto">ให้บริการด้วยใจ เพื่อสุขภาพที่ดีของประชาชน</p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="services.php" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-300">บริการของเรา</a>
-                <a href="appointment.php" class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition duration-300">นัดหมายแพทย์</a>
+                <a href="contact.php" class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition duration-300">ติดต่อเรา</a>
             </div>
         </div>
     </section>
@@ -222,16 +222,6 @@ include 'includes/header.php';
                 $stats = array();
                 try {
                     if ($conn) {
-                        // Get total appointments this month
-                        $stmt = $conn->prepare("
-                            SELECT COUNT(*) as count 
-                            FROM appointments 
-                            WHERE MONTH(appointment_date) = MONTH(CURDATE()) 
-                            AND YEAR(appointment_date) = YEAR(CURDATE())
-                        ");
-                        $stmt->execute();
-                        $monthly_appointments = $stmt->fetch();
-                        
                         // Get total patients
                         $stmt = $conn->prepare("SELECT COUNT(*) as count FROM patients WHERE is_active = 1");
                         $stmt->execute();
@@ -247,8 +237,18 @@ include 'includes/header.php';
                         $stmt->execute();
                         $total_departments = $stmt->fetch();
                         
+                        // Get total visits this month
+                        $stmt = $conn->prepare("
+                            SELECT COUNT(*) as count 
+                            FROM visits 
+                            WHERE MONTH(visit_date) = MONTH(CURDATE()) 
+                            AND YEAR(visit_date) = YEAR(CURDATE())
+                        ");
+                        $stmt->execute();
+                        $monthly_visits = $stmt->fetch();
+                        
                         $stats = array(
-                            array('number' => number_format($monthly_appointments['count']), 'label' => 'นัดหมายเดือนนี้', 'icon' => '📅'),
+                            array('number' => number_format($monthly_visits['count']), 'label' => 'การรักษาเดือนนี้', 'icon' => '📋'),
                             array('number' => number_format($total_patients['count']), 'label' => 'ผู้ป่วยทั้งหมด', 'icon' => '👥'),
                             array('number' => number_format($total_doctors['count']), 'label' => 'แพทย์และเจ้าหน้าที่', 'icon' => '👨‍⚕️'),
                             array('number' => number_format($total_departments['count']), 'label' => 'แผนกบริการ', 'icon' => '🏥')
@@ -260,8 +260,8 @@ include 'includes/header.php';
                 
                 if (empty($stats)) {
                     $stats = array(
-                        array('number' => '150+', 'label' => 'นัดหมายเดือนนี้', 'icon' => '📅'),
-                        array('number' => '1,200+', 'label' => 'ผู้ป่วยทั้งหมด', 'icon' => '👥'),
+                        array('number' => '200+', 'label' => 'การรักษาเดือนนี้', 'icon' => '📋'),
+                        array('number' => '1,500+', 'label' => 'ผู้ป่วยทั้งหมด', 'icon' => '👥'),
                         array('number' => '25+', 'label' => 'แพทย์และเจ้าหน้าที่', 'icon' => '👨‍⚕️'),
                         array('number' => '8', 'label' => 'แผนกบริการ', 'icon' => '🏥')
                     );
@@ -286,13 +286,10 @@ include 'includes/header.php';
                 ทีมแพทย์และเจ้าหน้าที่มืออาชีพพร้อมดูแลสุขภาพของคุณด้วยใจ
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="appointment.php" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-300">
-                    📅 นัดหมายแพทย์
-                </a>
-                <a href="contact.php" class="border-2 border-blue-600 text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-600 hover:text-white transition duration-300">
+                <a href="contact.php" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-300">
                     📞 ติดต่อเรา
                 </a>
-                <a href="services.php" class="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition duration-300">
+                <a href="services.php" class="border-2 border-blue-600 text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-600 hover:text-white transition duration-300">
                     🏥 ดูบริการ
                 </a>
             </div>
