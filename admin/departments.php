@@ -1,79 +1,184 @@
 <?php
-session_start();
-require_once 'config.php';
+require_once '../includes/auth.php';
+require_once '../config/database.php';
 
-// ตรวจสอบสิทธิ์การเข้าถึง
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: login.php");
-    exit();
-}
+// Require admin role
+requireAdmin('../login.php');
 
-// ฟังก์ชันสำหรับการจัดการแผนก
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+$page_title = "จัดการแผนก";
+
+// Handle actions
+$message = '';
+$error = '';
+
+if ($_POST) {
     $action = $_POST['action'] ?? '';
     
-    switch($action) {
-        case 'add':
-            $name = trim($_POST['name']);
-            $description = trim($_POST['description']);
-            $manager_id = $_POST['manager_id'] ?? null;
+    try {
+        $db = new Database();
+        $conn = $db->getConnection();
+        
+        if ($action === 'add') {
+            $name = sanitizeInput($_POST['name'] ?? '');
+            $description = sanitizeInput($_POST['description'] ?? '');
+            $manager_id = $_POST['manager_id'] ? (int)$_POST['manager_id'] : null;
             
-            if (!empty($name)) {
-                $stmt = $pdo->prepare("INSERT INTO departments (name, description, manager_id, created_at) VALUES (?, ?, ?, NOW())");
-                $stmt->execute([$name, $description, $manager_id]);
-                $success_message = "เพิ่มแผนกเรียบร้อยแล้ว";
+            if (empty($name)) {
+                $error = 'กรุณาใส่ชื่อแผนก';
             } else {
-                $error_message = "กรุณาใส่ชื่อแผนก";
+                // Check if department name already exists
+                $stmt = $conn->prepare("SELECT id FROM departments WHERE name = ?");
+                $stmt->execute(array($name));
+                if ($stmt->fetch()) {
+                    $error = 'ชื่อแผนกนี้มีอยู่ในระบบแล้ว';
+                } else {
+                    $stmt = $conn->prepare("
+                        INSERT INTO departments (name, description, manager_id, is_active, created_at) 
+                        VALUES (?, ?, ?, 1, NOW())
+                    ");
+                    
+                    if ($stmt->execute(array($name, $description, $manager_id))) {
+                        $dept_id = $conn->lastInsertId();
+                        logActivity($conn, $_SESSION['user_id'], 'department_created', 'departments', $dept_id, null, array(
+                            'name' => $name
+                        ));
+                        $message = "เพิ่มแผนกเรียบร้อยแล้ว";
+                    } else {
+                        $error = "เกิดข้อผิดพลาดในการบันทึก";
+                    }
+                }
             }
-            break;
+        } elseif ($action === 'edit') {
+            $id = (int)($_POST['id'] ?? 0);
+            $name = sanitizeInput($_POST['name'] ?? '');
+            $description = sanitizeInput($_POST['description'] ?? '');
+            $manager_id = $_POST['manager_id'] ? (int)$_POST['manager_id'] : null;
             
-        case 'edit':
-            $id = $_POST['id'];
-            $name = trim($_POST['name']);
-            $description = trim($_POST['description']);
-            $manager_id = $_POST['manager_id'] ?? null;
-            
-            if (!empty($name)) {
-                $stmt = $pdo->prepare("UPDATE departments SET name = ?, description = ?, manager_id = ?, updated_at = NOW() WHERE id = ?");
-                $stmt->execute([$name, $description, $manager_id, $id]);
-                $success_message = "อัปเดตแผนกเรียบร้อยแล้ว";
+            if (empty($name)) {
+                $error = 'กรุณาใส่ชื่อแผนก';
             } else {
-                $error_message = "กรุณาใส่ชื่อแผนก";
+                // Get old data
+                $stmt = $conn->prepare("SELECT * FROM departments WHERE id = ?");
+                $stmt->execute(array($id));
+                $old_data = $stmt->fetch();
+                
+                if ($old_data) {
+                    // Check if department name already exists (except current)
+                    $stmt = $conn->prepare("SELECT id FROM departments WHERE name = ? AND id != ?");
+                    $stmt->execute(array($name, $id));
+                    if ($stmt->fetch()) {
+                        $error = 'ชื่อแผนกนี้มีอยู่ในระบบแล้ว';
+                    } else {
+                        $stmt = $conn->prepare("
+                            UPDATE departments 
+                            SET name = ?, description = ?, manager_id = ?, updated_at = NOW() 
+                            WHERE id = ?
+                        ");
+                        
+                        if ($stmt->execute(array($name, $description, $manager_id, $id))) {
+                            logActivity($conn, $_SESSION['user_id'], 'department_updated', 'departments', $id, array(
+                                'name' => $old_data['name']
+                            ), array(
+                                'name' => $name
+                            ));
+                            $message = "อัปเดตแผนกเรียบร้อยแล้ว";
+                        } else {
+                            $error = "เกิดข้อผิดพลาดในการแก้ไข";
+                        }
+                    }
+                } else {
+                    $error = "ไม่พบแผนกนี้";
+                }
             }
-            break;
+        } elseif ($action === 'delete') {
+            $id = (int)($_POST['id'] ?? 0);
             
-        case 'delete':
-            $id = $_POST['id'];
+            // Get department info
+            $stmt = $conn->prepare("SELECT name FROM departments WHERE id = ?");
+            $stmt->execute(array($id));
+            $dept_info = $stmt->fetch();
             
-            // ตรวจสอบว่ามีพนักงานในแผนกนี้หรือไม่
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM employees WHERE department_id = ?");
-            $stmt->execute([$id]);
-            $employee_count = $stmt->fetchColumn();
-            
-            if ($employee_count > 0) {
-                $error_message = "ไม่สามารถลบแผนกได้ เนื่องจากมีพนักงานในแผนกนี้";
+            if ($dept_info) {
+                // Check if there are users in this department
+                $stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE department_id = ?");
+                $stmt->execute(array($id));
+                $user_count = $stmt->fetch()['count'];
+                
+                if ($user_count > 0) {
+                    $error = "ไม่สามารถลบแผนกได้ เนื่องจากมีผู้ใช้ {$user_count} คนในแผนกนี้";
+                } else {
+                    $stmt = $conn->prepare("DELETE FROM departments WHERE id = ?");
+                    if ($stmt->execute(array($id))) {
+                        logActivity($conn, $_SESSION['user_id'], 'department_deleted', 'departments', $id, array(
+                            'name' => $dept_info['name']
+                        ), null);
+                        $message = "ลบแผนกเรียบร้อยแล้ว";
+                    } else {
+                        $error = "เกิดข้อผิดพลาดในการลบ";
+                    }
+                }
             } else {
-                $stmt = $pdo->prepare("DELETE FROM departments WHERE id = ?");
-                $stmt->execute([$id]);
-                $success_message = "ลบแผนกเรียบร้อยแล้ว";
+                $error = "ไม่พบแผนกนี้";
             }
-            break;
+        }
+    } catch (Exception $e) {
+        $error = 'เกิดข้อผิดพลาด: ' . $e->getMessage();
+        logError($e->getMessage(), __FILE__, __LINE__);
     }
 }
 
-// ดึงข้อมูลแผนกทั้งหมด
-$departments_query = "
-    SELECT d.*, 
-           CONCAT(e.first_name, ' ', e.last_name) as manager_name,
-           (SELECT COUNT(*) FROM employees WHERE department_id = d.id) as employee_count
-    FROM departments d 
-    LEFT JOIN employees e ON d.manager_id = e.id 
-    ORDER BY d.name
-";
-$departments = $pdo->query($departments_query)->fetchAll();
-
-// ดึงข้อมูลพนักงานสำหรับเลือกเป็นหัวหน้าแผนก
-$employees = $pdo->query("SELECT id, CONCAT(first_name, ' ', last_name) as full_name FROM employees ORDER BY first_name, last_name")->fetchAll();
+// Get departments with statistics
+try {
+    $db = new Database();
+    $conn = $db->getConnection();
+    
+    // Create departments table if not exists
+    $conn->exec("
+        CREATE TABLE IF NOT EXISTS departments (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            description TEXT,
+            manager_id INT NULL,
+            is_active TINYINT(1) DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_name (name),
+            INDEX idx_manager (manager_id),
+            INDEX idx_active (is_active)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+    
+    // Get departments with manager info and user count
+    $departments_query = "
+        SELECT d.*, 
+               CONCAT(COALESCE(m.first_name, ''), ' ', COALESCE(m.last_name, '')) as manager_name,
+               (SELECT COUNT(*) FROM users WHERE department_id = d.id AND is_active = 1) as user_count
+        FROM departments d 
+        LEFT JOIN users m ON d.manager_id = m.id 
+        WHERE d.is_active = 1
+        ORDER BY d.name
+    ";
+    $stmt = $conn->prepare($departments_query);
+    $stmt->execute();
+    $departments = $stmt->fetchAll();
+    
+    // Get users for manager selection (only active users)
+    $users_query = "
+        SELECT id, CONCAT(first_name, ' ', last_name) as full_name, role
+        FROM users 
+        WHERE is_active = 1 
+        ORDER BY first_name, last_name
+    ";
+    $stmt = $conn->prepare($users_query);
+    $stmt->execute();
+    $users = $stmt->fetchAll();
+    
+} catch (Exception $e) {
+    $error = "เกิดข้อผิดพลาดในการโหลดข้อมูล: " . $e->getMessage();
+    logError($e->getMessage(), __FILE__, __LINE__);
+    $departments = array();
+    $users = array();
+}
 ?>
 
 <!DOCTYPE html>
@@ -81,361 +186,334 @@ $employees = $pdo->query("SELECT id, CONCAT(first_name, ' ', last_name) as full_
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>จัดการแผนก - ระบบจัดการองค์กร</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title><?php echo $page_title; ?> - โรงพยาบาลทุ่งหัวช้าง</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .sidebar {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .content-wrapper {
-            background-color: #f8f9fa;
-            min-height: 100vh;
-        }
-        .card {
-            border: none;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            border-radius: 10px;
-        }
-        .btn-primary {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            border: none;
-            border-radius: 25px;
-        }
-        .btn-primary:hover {
-            background: linear-gradient(45deg, #764ba2, #667eea);
-            transform: translateY(-2px);
-        }
-        .table th {
-            background-color: #f8f9fa;
-            border-top: none;
-            font-weight: 600;
-        }
-        .badge {
-            font-size: 0.85em;
-        }
-        .modal-header {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-        }
-        .stats-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px;
-        }
+        body { font-family: 'Sarabun', sans-serif; }
     </style>
 </head>
-<body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar p-0">
-                <div class="p-3">
-                    <h4 class="text-white mb-4">
-                        <i class="fas fa-building me-2"></i>
-                        ระบบจัดการ
-                    </h4>
-                    <nav class="nav flex-column">
-                        <a class="nav-link text-white mb-2" href="dashboard.php">
-                            <i class="fas fa-home me-2"></i> หน้าแรก
-                        </a>
-                        <a class="nav-link text-white mb-2" href="employees.php">
-                            <i class="fas fa-users me-2"></i> จัดการพนักงาน
-                        </a>
-                        <a class="nav-link text-white mb-2 active bg-white bg-opacity-25 rounded" href="departments.php">
-                            <i class="fas fa-building me-2"></i> จัดการแผนก
-                        </a>
-                        <a class="nav-link text-white mb-2" href="positions.php">
-                            <i class="fas fa-briefcase me-2"></i> จัดการตำแหน่ง
-                        </a>
-                        <a class="nav-link text-white" href="logout.php">
-                            <i class="fas fa-sign-out-alt me-2"></i> ออกจากระบบ
-                        </a>
-                    </nav>
+<body class="bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-blue-800 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold">THC</span>
+                    </div>
+                    <h1 class="text-xl font-bold">ระบบจัดการโรงพยาบาลทุ่งหัวช้าง</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span>สวัสดี, <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Admin'); ?></span>
+                    <a href="../logout.php" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded transition duration-300">ออกจากระบบ</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white shadow-lg min-h-screen">
+            <div class="p-6">
+                <div class="space-y-2">
+                    <a href="dashboard.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                        📊 แดชบอร์ด
+                    </a>
+                    <a href="patients.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                        👥 ข้อมูลผู้ป่วย
+                    </a>
+                    <a href="visits.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                        🏥 การรักษา
+                    </a>
+                    <a href="doctors.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                        👨‍⚕️ จัดการแพทย์
+                    </a>
+                    <a href="departments.php" class="block py-2 px-4 text-blue-600 bg-blue-50 rounded font-medium">
+                        🏥 จัดการแผนก
+                    </a>
+                    <a href="news.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                        📰 จัดการข่าวสาร
+                    </a>
+                    <a href="users.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                        👨‍💼 จัดการผู้ใช้
+                    </a>
+                    <a href="reports.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                        📊 รายงาน
+                    </a>
+                    <a href="settings.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                        ⚙️ ตั้งค่าระบบ
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <!-- Messages -->
+            <?php if ($message): ?>
+            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
+                ✅ <?php echo $message; ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($error): ?>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+                ❌ <?php echo $error; ?>
+            </div>
+            <?php endif; ?>
+
+            <!-- Header -->
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-gray-800">จัดการแผนก</h2>
+                <p class="text-gray-600">จัดการข้อมูลแผนกต่างๆ ในโรงพยาบาล</p>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="text-3xl text-blue-600 mr-4">🏥</div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800"><?php echo count($departments); ?></h3>
+                            <p class="text-gray-600">แผนกทั้งหมด</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="text-3xl text-green-600 mr-4">👨‍💼</div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800">
+                                <?php echo count(array_filter($departments, function($d) { return !empty(trim($d['manager_name'])); })); ?>
+                            </h3>
+                            <p class="text-gray-600">แผนกที่มีหัวหน้า</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="text-3xl text-purple-600 mr-4">👥</div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800">
+                                <?php echo array_sum(array_column($departments, 'user_count')); ?>
+                            </h3>
+                            <p class="text-gray-600">ผู้ใช้ทั้งหมด</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 content-wrapper">
-                <div class="p-4">
-                    <!-- Header -->
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div>
-                            <h2 class="mb-1">จัดการแผนก</h2>
-                            <p class="text-muted">จัดการข้อมูลแผนกต่างๆ ในองค์กร</p>
-                        </div>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDepartmentModal">
-                            <i class="fas fa-plus me-2"></i>เพิ่มแผนกใหม่
+            <!-- Action Bar -->
+            <div class="flex justify-between items-center mb-6">
+                <button onclick="openAddModal()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-300">
+                    ➕ เพิ่มแผนกใหม่
+                </button>
+            </div>
+
+            <!-- Departments Table -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อแผนก</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">คำอธิบาย</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">หัวหน้าแผนก</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จำนวนผู้ใช้</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">วันที่สร้าง</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <?php if (empty($departments)): ?>
+                            <tr>
+                                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                                    <div class="text-4xl mb-2">🏥</div>
+                                    ไม่มีข้อมูลแผนก
+                                    <div class="mt-4">
+                                        <button onclick="openAddModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                            เพิ่มแผนกแรก
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php else: ?>
+                            <?php foreach ($departments as $dept): ?>
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        <?php echo htmlspecialchars($dept['name']); ?>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-sm text-gray-500">
+                                        <?php echo htmlspecialchars($dept['description'] ?: '-'); ?>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <?php if (!empty(trim($dept['manager_name']))): ?>
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                        👨‍💼 <?php echo htmlspecialchars(trim($dept['manager_name'])); ?>
+                                    </span>
+                                    <?php else: ?>
+                                    <span class="text-gray-400 text-sm">ไม่มีหัวหน้า</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                        <?php echo $dept['user_count']; ?> คน
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-500">
+                                    <?php echo formatThaiDate($dept['created_at']); ?>
+                                </td>
+                                <td class="px-6 py-4 text-sm font-medium">
+                                    <div class="flex space-x-2">
+                                        <button onclick="editDepartment(<?php echo htmlspecialchars(json_encode($dept)); ?>)" 
+                                                class="text-blue-600 hover:text-blue-900">
+                                            แก้ไข
+                                        </button>
+                                        <button onclick="deleteDepartment(<?php echo $dept['id']; ?>, '<?php echo htmlspecialchars($dept['name'], ENT_QUOTES); ?>', <?php echo $dept['user_count']; ?>)" 
+                                                class="text-red-600 hover:text-red-900">
+                                            ลบ
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Department Modal -->
+    <div id="departmentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <form method="POST" id="departmentForm">
+                    <div class="p-6 border-b border-gray-200">
+                        <h3 class="text-lg font-medium text-gray-900" id="modalTitle">เพิ่มแผนกใหม่</h3>
+                        <button type="button" onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                            <span class="sr-only">ปิด</span>
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
                         </button>
                     </div>
-
-                    <!-- Alert Messages -->
-                    <?php if (isset($success_message)): ?>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle me-2"></i><?php echo $success_message; ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    
+                    <div class="p-6 space-y-4">
+                        <input type="hidden" name="action" id="modalAction" value="add">
+                        <input type="hidden" name="id" id="modalId">
+                        
+                        <div>
+                            <label for="modalName" class="block text-sm font-medium text-gray-700 mb-2">ชื่อแผนก *</label>
+                            <input type="text" name="name" id="modalName" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                   placeholder="เช่น แผนกอายุรกรรม">
                         </div>
-                    <?php endif; ?>
-
-                    <?php if (isset($error_message)): ?>
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-circle me-2"></i><?php echo $error_message; ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        
+                        <div>
+                            <label for="modalDescription" class="block text-sm font-medium text-gray-700 mb-2">คำอธิบาย</label>
+                            <textarea name="description" id="modalDescription" rows="3" 
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                      placeholder="คำอธิบายเกี่ยวกับแผนก"></textarea>
                         </div>
-                    <?php endif; ?>
-
-                    <!-- Statistics Cards -->
-                    <div class="row mb-4">
-                        <div class="col-lg-4 col-md-6 mb-3">
-                            <div class="card stats-card">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-building fa-2x mb-3"></i>
-                                    <h3><?php echo count($departments); ?></h3>
-                                    <p class="mb-0">จำนวนแผนกทั้งหมด</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-4 col-md-6 mb-3">
-                            <div class="card stats-card">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-user-tie fa-2x mb-3"></i>
-                                    <h3><?php echo count(array_filter($departments, function($d) { return !empty($d['manager_id']); })); ?></h3>
-                                    <p class="mb-0">แผนกที่มีหัวหน้า</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-4 col-md-6 mb-3">
-                            <div class="card stats-card">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-users fa-2x mb-3"></i>
-                                    <h3><?php echo array_sum(array_column($departments, 'employee_count')); ?></h3>
-                                    <p class="mb-0">พนักงานทั้งหมด</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Departments Table -->
-                    <div class="card">
-                        <div class="card-header bg-white">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-list me-2"></i>รายการแผนก
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>ชื่อแผนก</th>
-                                            <th>คำอธิบาย</th>
-                                            <th>หัวหน้าแผนก</th>
-                                            <th>จำนวนพนักงาน</th>
-                                            <th>วันที่สร้าง</th>
-                                            <th>การจัดการ</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($departments as $dept): ?>
-                                        <tr>
-                                            <td>
-                                                <strong><?php echo htmlspecialchars($dept['name']); ?></strong>
-                                            </td>
-                                            <td>
-                                                <?php echo htmlspecialchars($dept['description'] ?: '-'); ?>
-                                            </td>
-                                            <td>
-                                                <?php if ($dept['manager_name']): ?>
-                                                    <span class="badge bg-primary">
-                                                        <i class="fas fa-user-tie me-1"></i>
-                                                        <?php echo htmlspecialchars($dept['manager_name']); ?>
-                                                    </span>
-                                                <?php else: ?>
-                                                    <span class="text-muted">ไม่มีหัวหน้า</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-info">
-                                                    <?php echo $dept['employee_count']; ?> คน
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <?php echo date('d/m/Y', strtotime($dept['created_at'])); ?>
-                                            </td>
-                                            <td>
-                                                <button class="btn btn-sm btn-outline-primary me-1" 
-                                                        onclick="editDepartment(<?php echo htmlspecialchars(json_encode($dept)); ?>)">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-danger" 
-                                                        onclick="deleteDepartment(<?php echo $dept['id']; ?>, '<?php echo htmlspecialchars($dept['name']); ?>', <?php echo $dept['employee_count']; ?>)">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Department Modal -->
-    <div class="modal fade" id="addDepartmentModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="fas fa-plus me-2"></i>เพิ่มแผนกใหม่
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="POST">
-                    <div class="modal-body">
-                        <input type="hidden" name="action" value="add">
-                        <div class="mb-3">
-                            <label for="addName" class="form-label">ชื่อแผนก *</label>
-                            <input type="text" class="form-control" id="addName" name="name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="addDescription" class="form-label">คำอธิบาย</label>
-                            <textarea class="form-control" id="addDescription" name="description" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="addManager" class="form-label">หัวหน้าแผนก</label>
-                            <select class="form-select" id="addManager" name="manager_id">
+                        
+                        <div>
+                            <label for="modalManager" class="block text-sm font-medium text-gray-700 mb-2">หัวหน้าแผนก</label>
+                            <select name="manager_id" id="modalManager" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 <option value="">เลือกหัวหน้าแผนก</option>
-                                <?php foreach ($employees as $emp): ?>
-                                    <option value="<?php echo $emp['id']; ?>">
-                                        <?php echo htmlspecialchars($emp['full_name']); ?>
-                                    </option>
+                                <?php foreach ($users as $user): ?>
+                                <option value="<?php echo $user['id']; ?>">
+                                    <?php echo htmlspecialchars($user['full_name'] . ' (' . $user['role'] . ')'); ?>
+                                </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-                        <button type="submit" class="btn btn-primary">บันทึก</button>
+                    
+                    <div class="px-6 py-4 bg-gray-50 text-right space-x-3">
+                        <button type="button" onclick="closeModal()" 
+                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">
+                            ยกเลิก
+                        </button>
+                        <button type="submit" 
+                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+                            บันทึก
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Edit Department Modal -->
-    <div class="modal fade" id="editDepartmentModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="fas fa-edit me-2"></i>แก้ไขแผนก
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="POST">
-                    <div class="modal-body">
-                        <input type="hidden" name="action" value="edit">
-                        <input type="hidden" name="id" id="editId">
-                        <div class="mb-3">
-                            <label for="editName" class="form-label">ชื่อแผนก *</label>
-                            <input type="text" class="form-control" id="editName" name="name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editDescription" class="form-label">คำอธิบาย</label>
-                            <textarea class="form-control" id="editDescription" name="description" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editManager" class="form-label">หัวหน้าแผนก</label>
-                            <select class="form-select" id="editManager" name="manager_id">
-                                <option value="">เลือกหัวหน้าแผนก</option>
-                                <?php foreach ($employees as $emp): ?>
-                                    <option value="<?php echo $emp['id']; ?>">
-                                        <?php echo htmlspecialchars($emp['full_name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-                        <button type="submit" class="btn btn-primary">บันทึกการแก้ไข</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div class="modal fade" id="deleteModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title">
-                        <i class="fas fa-exclamation-triangle me-2"></i>ยืนยันการลบ
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p id="deleteMessage"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-                    <form method="POST" style="display: inline;">
-                        <input type="hidden" name="action" value="delete">
-                        <input type="hidden" name="id" id="deleteId">
-                        <button type="submit" class="btn btn-danger">ลบแผนก</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
-        function editDepartment(dept) {
-            document.getElementById('editId').value = dept.id;
-            document.getElementById('editName').value = dept.name;
-            document.getElementById('editDescription').value = dept.description || '';
-            document.getElementById('editManager').value = dept.manager_id || '';
-            
-            new bootstrap.Modal(document.getElementById('editDepartmentModal')).show();
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'เพิ่มแผนกใหม่';
+            document.getElementById('modalAction').value = 'add';
+            document.getElementById('modalId').value = '';
+            document.getElementById('departmentForm').reset();
+            document.getElementById('departmentModal').classList.remove('hidden');
         }
 
-        function deleteDepartment(id, name, employeeCount) {
-            const message = employeeCount > 0 
-                ? `ไม่สามารถลบแผนก "${name}" ได้ เนื่องจากมีพนักงาน ${employeeCount} คนในแผนกนี้`
-                : `คุณแน่ใจหรือไม่ที่จะลบแผนก "${name}"?`;
-            
-            document.getElementById('deleteMessage').textContent = message;
-            document.getElementById('deleteId').value = id;
-            
-            // ซ่อน/แสดงปุ่มลบตามจำนวนพนักงาน
-            const deleteButton = document.querySelector('#deleteModal .btn-danger');
-            const form = deleteButton.closest('form');
-            
-            if (employeeCount > 0) {
-                form.style.display = 'none';
-            } else {
-                form.style.display = 'inline';
+        function editDepartment(dept) {
+            document.getElementById('modalTitle').textContent = 'แก้ไขแผนก';
+            document.getElementById('modalAction').value = 'edit';
+            document.getElementById('modalId').value = dept.id;
+            document.getElementById('modalName').value = dept.name;
+            document.getElementById('modalDescription').value = dept.description || '';
+            document.getElementById('modalManager').value = dept.manager_id || '';
+            document.getElementById('departmentModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('departmentModal').classList.add('hidden');
+        }
+
+        function deleteDepartment(id, name, userCount) {
+            if (userCount > 0) {
+                alert(`ไม่สามารถลบแผนก "${name}" ได้ เนื่องจากมีผู้ใช้ ${userCount} คนในแผนกนี้`);
+                return;
             }
             
-            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+            if (confirm(`ต้องการลบแผนก "${name}" หรือไม่?\n\nการดำเนินการนี้ไม่สามารถยกเลิกได้`)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="id" value="${id}">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
         }
 
-        // Auto-hide alerts after 5 seconds
-        document.addEventListener('DOMContentLoaded', function() {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(function(alert) {
-                setTimeout(function() {
-                    const bsAlert = new bootstrap.Alert(alert);
-                    bsAlert.close();
-                }, 5000);
-            });
+        // Close modal when clicking outside
+        document.getElementById('departmentModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Form validation
+        document.getElementById('modalName').addEventListener('input', function() {
+            const name = this.value.trim();
+            if (name.length > 100) {
+                this.setCustomValidity('ชื่อแผนกต้องไม่เกิน 100 ตัวอักษร');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+
+        // Auto-resize textarea
+        document.getElementById('modalDescription').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
         });
     </script>
 </body>
