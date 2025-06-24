@@ -531,7 +531,7 @@ function generateSlug($text) {
                 <div class="flex items-center justify-between">
                     <div>
                         <h2 class="text-4xl font-bold text-gray-800 mb-2">จัดการข่าวสาร</h2>
-                        <p class="text-gray-600">จัดการข่าวสารและประกาศของโรงพยาบาล พร้อมระบบอัพโหลดไฟล์</p>
+                        <p class="text-gray-600">จัดการข่าวสารและประกาศของโรงพยาบาลทุ่งหัวช้าง พร้อมระบบอัพโหลดไฟล์</p>
                     </div>
                     <div class="text-right">
                         <p class="text-sm text-gray-500">อัปเดตล่าสุด</p>

@@ -22,3 +22,5 @@
 2025-06-24 10:53:09 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.manager_id' in 'on clause' in E:\xampp\htdocs\main\admin\departments.php on line 178
 2025-06-24 10:59:03 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.manager_id' in 'on clause' in E:\xampp\htdocs\main\admin\departments.php on line 178
 2025-06-24 11:10:01 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'd.manager_id' in 'on clause' in E:\xampp\htdocs\main\admin\departments.php on line 178
+2025-06-24 11:24:37 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'display_order' in 'order clause' in E:\xampp\htdocs\main\index3.php on line 142
+2025-06-24 11:34:48 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'display_order' in 'order clause' in E:\xampp\htdocs\main\index3.php on line 142
