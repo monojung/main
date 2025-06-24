@@ -482,13 +482,13 @@ function getSettingValue($key, $default = '') {
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อโรงพยาบาล (ไทย)</label>
                                     <input type="text" name="hospital_name" 
-                                           value="<?php echo htmlspecialchars(getSettingValue('hospital_name', 'โรงพยาบาลทุ่งหัวช้าง')); ?>"
+                                           value="<?php echo htmlspecialchars(getSettingValue('hospital_name', 'โรงพยาบาล')); ?>"
                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อโรงพยาบาล (อังกฤษ)</label>
                                     <input type="text" name="hospital_name_en" 
-                                           value="<?php echo htmlspecialchars(getSettingValue('hospital_name_en', 'Tung Hua Chang Hospital')); ?>"
+                                           value="<?php echo htmlspecialchars(getSettingValue('hospital_name_en', 'Hospital')); ?>"
                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
                             </div>
@@ -518,7 +518,7 @@ function getSettingValue($key, $default = '') {
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">อีเมล</label>
                                     <input type="email" name="hospital_email" 
-                                           value="<?php echo htmlspecialchars(getSettingValue('hospital_email', 'info@thchospital.go.th')); ?>"
+                                           value="<?php echo htmlspecialchars(getSettingValue('hospital_email', 'info@hospital.go.th')); ?>"
                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                                 </div>
                                 <div>
