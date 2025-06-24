@@ -363,17 +363,8 @@ function getSettingValue($key, $default = '') {
         <aside class="w-64 bg-white shadow-lg min-h-screen">
             <div class="p-6">
                 <div class="space-y-2">
-                    <a href="dashboard.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                    <a href="dashboard.php" class="block py-2 px-4 text-blue-600 bg-blue-50 rounded font-medium">
                         📊 แดชบอร์ด
-                    </a>
-                    <a href="appointments.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        📅 จัดการนัดหมาย
-                    </a>
-                    <a href="patients.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        👥 ข้อมูลผู้ป่วย
-                    </a>
-                    <a href="doctors.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        👨‍⚕️ จัดการแพทย์
                     </a>
                     <a href="departments.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
                         🏥 จัดการแผนก
@@ -387,8 +378,12 @@ function getSettingValue($key, $default = '') {
                     <a href="reports.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
                         📊 รายงาน
                     </a>
-                    <a href="settings.php" class="block py-2 px-4 text-blue-600 bg-blue-50 rounded font-medium">
+                    <a href="settings.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
                         ⚙️ ตั้งค่าระบบ
+                    </a>
+                    <hr class="my-3">
+                    <a href="../index.php" target="_blank" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
+                        🌐 เว็บไซต์หลัก
                     </a>
                 </div>
             </div>

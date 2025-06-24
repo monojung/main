@@ -69,66 +69,63 @@ try {
     </style>
 </head>
 <body class="bg-gray-100">
-    <!-- Navigation -->
-    <nav class="bg-blue-800 text-white shadow-lg">
+    <!-- Enhanced Navigation -->
+    <nav class="bg-gradient-to-r from-blue-800 to-blue-900 text-white shadow-xl">
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-center py-4">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                        <span class="text-white font-bold">THC</span>
+                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                        <span class="text-white font-bold text-lg">THC</span>
                     </div>
-                    <h1 class="text-xl font-bold">ระบบจัดการโรงพยาบาลทุ่งหัวช้าง</h1>
+                    <div>
+                        <h1 class="text-xl font-bold">ระบบจัดการโรงพยาบาลทุ่งหัวช้าง</h1>
+                        <p class="text-blue-200 text-sm">ระบบจัดการข่าวสารและประกาศ</p>
+                    </div>
                 </div>
                 <div class="flex items-center space-x-4">
                     <div class="text-right">
-                        <span>สวัสดี, <?php echo htmlspecialchars($_SESSION['user_name']); ?></span>
-                        <div class="text-sm opacity-90">ผู้ดูแลระบบ</div>
+                        <p class="text-sm">สวัสดี, <?php echo htmlspecialchars($_SESSION['user_name']); ?></p>
+                        <p class="text-xs text-blue-200"><?php echo date('d/m/Y H:i'); ?></p>
                     </div>
-                    <a href="../logout.php" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded transition duration-300">ออกจากระบบ</a>
+                    <a href="../logout.php" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition duration-300 hover-lift">
+                        ออกจากระบบ
+                    </a>
                 </div>
             </div>
         </div>
     </nav>
 
     <div class="flex">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-white shadow-lg min-h-screen">
+        <!-- Enhanced Sidebar -->
+        <aside class="w-64 bg-white shadow-xl border-r border-gray-200">
             <div class="p-6">
                 <div class="space-y-2">
-                    <a href="dashboard.php" class="block py-2 px-4 text-blue-600 bg-blue-50 rounded font-medium">
-                        📊 แดชบอร์ด
+                    <a href="dashboard.php" class="flex items-center py-3 px-4 text-blue-600 bg-blue-50 rounded-lg font-medium border-l-4 border-blue-600">
+                        <span class="text-xl mr-3">📊</span> แดชบอร์ด
                     </a>
-                    <a href="patients.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        👥 ข้อมูลผู้ป่วย
+                    <a href="news.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition duration-200">
+                        <span class="text-xl mr-3">📰</span> จัดการข่าวสาร
                     </a>
-                    <a href="visits.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        🏥 การรักษา
+                    <a href="reports.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition duration-200">
+                        <span class="text-xl mr-3">📊</span> รายงาน
                     </a>
-                    <a href="doctors.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        👨‍⚕️ จัดการแพทย์
+
+                    <a href="users.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition duration-200">
+                        <span class="text-xl mr-3">👨‍💼</span> จัดการผู้ใช้
                     </a>
-                    <a href="departments.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        🏥 จัดการแผนก
-                    </a>
-                    <a href="news.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        📰 จัดการข่าวสาร
-                    </a>
-                    <a href="users.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        👨‍💼 จัดการผู้ใช้
-                    </a>
-                    <a href="reports.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        📊 รายงาน
-                    </a>
-                    <a href="settings.php" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        ⚙️ ตั้งค่าระบบ
+
+                    <a href="settings.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition duration-200">
+                        <span class="text-xl mr-3">⚙️</span> ตั้งค่าระบบ
                     </a>
                     <hr class="my-3">
-                    <a href="../index.php" target="_blank" class="block py-2 px-4 text-gray-700 hover:bg-gray-50 rounded">
-                        🌐 เว็บไซต์หลัก
+                    <a href="../index.php" target="_blank" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition duration-200">
+                        <span class="text-xl mr-3">🌐</span> เว็บไซต์หลัก
                     </a>
                 </div>
             </div>
         </aside>
+
+
 
         <!-- Main Content -->
         <main class="flex-1 p-8">
@@ -140,6 +137,11 @@ try {
                     🕐 <span id="current-time"></span>
                 </div>
             </div>
+
+
+
+
+
 
             <!-- Statistics Cards -->
             <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
