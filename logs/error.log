@@ -290,3 +290,10 @@
 2025-07-02 02:39:26 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
 2025-07-02 02:39:26 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
 2025-07-02 02:39:26 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
+2025-07-02 02:40:03 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.departments' doesn't exist in I:\xampp\htdocs\main\index.php on line 58
+2025-07-02 02:44:38 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
+2025-07-02 02:44:38 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
+2025-07-02 02:44:38 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
+2025-07-02 02:44:38 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
+2025-07-02 02:44:38 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
+2025-07-02 02:44:38 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
