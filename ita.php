@@ -1,670 +1,774 @@
-<?php 
-$page_title = "การดำเนินงานโครงการ Integrity and Transparency Assessment (MOPH ITA)";
-require_once 'config/database.php';
-include 'includes/header.php'; 
-?>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบประเมิน ITA - มาตรฐานความโปร่งใส MOIT</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-<main>
-    <!-- Hero Section -->
-    <section class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-16">
-        <div class="container mx-auto px-4">
-            <div class="text-center">
-                <h1 class="text-4xl md:text-5xl font-bold mb-4">
-                    การดำเนินงานโครงการ ITA
-                </h1>
-                <p class="text-xl md:text-2xl mb-2">
-                    Integrity and Transparency Assessment (MOPH ITA)
-                </p>
-                <p class="text-lg opacity-90">
-                    ประจำปีงบประมาณ 2568
-                </p>
-                <div class="mt-8 inline-block bg-white/20 backdrop-blur-sm rounded-lg px-6 py-3">
-                    <p class="text-sm">
-                        💼 โครงการประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานภาครัฐ
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
+        body {
+            font-family: 'Sarabun', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
 
-    <!-- Introduction Section -->
-    <section class="py-16">
-        <div class="container mx-auto px-4">
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-white rounded-lg shadow-lg p-8">
-                    <h2 class="text-3xl font-bold mb-6 text-center text-gray-800">
-                        เกี่ยวกับ MOPH ITA
-                    </h2>
-                    <div class="prose prose-lg max-w-none text-gray-600">
-                        <p class="mb-6">
-                            <strong>MOPH ITA (Ministry of Public Health Integrity and Transparency Assessment)</strong> 
-                            เป็นโครงการประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานในสังกัดกระทรวงสาธารณสุข 
-                            เพื่อส่งเสริมการบริหารงานที่มีคุณธรรม โปร่งใส และตรวจสอบได้
-                        </p>
-                        <div class="grid md:grid-cols-3 gap-6 mt-8">
-                            <div class="text-center">
-                                <div class="text-4xl mb-3">🎯</div>
-                                <h3 class="text-lg font-semibold mb-2">วัตถุประสงค์</h3>
-                                <p class="text-sm">ยกระดับคุณธรรมและความโปร่งใสในการดำเนินงาน</p>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-4xl mb-3">📊</div>
-                                <h3 class="text-lg font-semibold mb-2">การประเมิน</h3>
-                                <p class="text-sm">ประเมินตามเกณฑ์มาตรฐาน 22 ข้อ</p>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-4xl mb-3">🏆</div>
-                                <h3 class="text-lg font-semibold mb-2">เป้าหมาย</h3>
-                                <p class="text-sm">พัฒนาองค์กรสู่ความเป็นเลิศ</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
 
-    <!-- MOIT Criteria Section -->
-    <section class="py-16 bg-gray-50">
-        <div class="container mx-auto px-4">
-            <h2 class="text-3xl font-bold text-center mb-12 text-gray-800">
-                เกณฑ์การประเมิน MOIT (22 ข้อ)
-            </h2>
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 15px;
+            flex: 1;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .assessment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .moit-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .moit-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .moit-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .moit-number {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .moit-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            line-height: 1.4;
+        }
+
+        .progress-container {
+            margin: 15px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 10px;
+            transition: width 0.8s ease;
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        .requirements-list {
+            list-style: none;
+            margin-top: 15px;
+        }
+
+        .requirements-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #ecf0f1;
+            font-size: 0.9rem;
+            color: #5a6c7d;
+            display: flex;
+            align-items: center;
+        }
+
+        .requirements-list li:last-child {
+            border-bottom: none;
+        }
+
+        .check-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #2ecc71;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-size: 10px;
+            flex-shrink: 0;
+        }
+
+        .incomplete {
+            background: #e74c3c;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #ecf0f1;
+            color: #7f8c8d;
+        }
+
+        .btn-secondary:hover {
+            background: #d5dbdb;
+        }
+
+        .summary-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .category-item {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(45deg, #74b9ff, #0984e3);
+            color: white;
+            border-radius: 15px;
+            transition: transform 0.3s ease;
+        }
+
+        .category-item:hover {
+            transform: scale(1.05);
+        }
+
+        .category-score {
+            font-size: 2.5rem;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .category-name {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .export-section {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 2px solid #ecf0f1;
+        }
+
+        @media (max-width: 768px) {
+            .assessment-grid {
+                grid-template-columns: 1fr;
+            }
             
-            <div class="grid lg:grid-cols-2 gap-8">
-                <!-- MOIT 1-11 -->
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h3 class="text-xl font-bold mb-6 text-blue-600">📢 ข้อมูลพื้นฐานและการเผยแพร่</h3>
-                    <div class="space-y-4">
-                        <div class="border-l-4 border-blue-500 pl-4">
-                            <h4 class="font-semibold text-gray-800">MOIT 1: ระบบเผยแพร่ข้อมูล</h4>
-                            <p class="text-sm text-gray-600">การวางระบบเผยแพร่ข้อมูลต่อสาธารณะผ่านเว็บไซต์</p>
-                            <a href="?page_id=1886" class="text-blue-600 hover:underline text-sm">📄 ดูรายละเอียด</a>
-                        </div>
-                        
-                        <div class="border-l-4 border-blue-500 pl-4">
-                            <h4 class="font-semibold text-gray-800">MOIT 2: ข้อมูลข่าวสารปัจจุบัน</h4>
-                            <p class="text-sm text-gray-600">การเปิดเผยข้อมูลข่าวสารที่เป็นปัจจุบัน</p>
-                            <div class="mt-2 space-y-1">
-                                <a href="?page_id=1890" class="block text-blue-600 hover:underline text-sm">• ข้อมูลผู้บริหาร</a>
-                                <a href="?page_id=1892" class="block text-blue-600 hover:underline text-sm">• นโยบายผู้บริหาร</a>
-                                <a href="?page_id=1896" class="block text-blue-600 hover:underline text-sm">• โครงสร้างหน่วยงาน</a>
-                                <a href="?page_id=1898" class="block text-blue-600 hover:underline text-sm">• หน้าที่และอำนาจ</a>
-                            </div>
-                        </div>
+            .stats-bar {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .category-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
 
-                        <div class="border-l-4 border-green-500 pl-4">
-                            <h4 class="font-semibold text-gray-800">MOIT 3-5: การจัดซื้อจัดจ้าง</h4>
-                            <p class="text-sm text-gray-600">รายงานและระบบจัดซื้อจัดจ้าง</p>
-                            <a href="?page_id=1967" class="text-green-600 hover:underline text-sm">📊 ดูรายงาน</a>
-                        </div>
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
 
-                        <div class="border-l-4 border-purple-500 pl-4">
-                            <h4 class="font-semibold text-gray-800">MOIT 6-8: การบริหารทรัพยากรบุคคล</h4>
-                            <p class="text-sm text-gray-600">นโยบายและการประเมินผลการปฏิบัติราชการ</p>
-                        </div>
+        .fade-in {
+            animation: fadeIn 0.8s ease-in;
+        }
 
-                        <div class="border-l-4 border-orange-500 pl-4">
-                            <h4 class="font-semibold text-gray-800">MOIT 9-11: การจัดการร้องเรียน</h4>
-                            <p class="text-sm text-gray-600">แนวปฏิบัติและการมีส่วนร่วม</p>
-                            <a href="?page_id=2176" class="text-orange-600 hover:underline text-sm">📋 คู่มือปฏิบัติ</a>
-                        </div>
-                    </div>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header fade-in">
+            <h1>ระบบประเมิน ITA</h1>
+            <p>Information Technology Assessment - มาตรฐานความโปร่งใสและการต่อต้านการทุจริต MOIT</p>
+            <p><strong>ปีงบประมาณ พ.ศ. 2568</strong> | กระทรวงสาธารณสุข</p>
+            
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-number" id="totalItems">22</span>
+                    <span class="stat-label">รายการทั้งหมด</span>
                 </div>
-
-                <!-- MOIT 12-22 -->
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h3 class="text-xl font-bold mb-6 text-red-600">🛡️ การป้องกันการทุจริตและจริยธรรม</h3>
-                    <div class="space-y-4">
-                        <div class="border-l-4 border-red-500 pl-4">
-                            <h4 class="font-semibold text-gray-800">MOIT 12: การป้องกันการรับสินบน</h4>
-                            <p class="text-sm text-gray-600">มาตรการป้องกันการรับสินบนที่เป็นระบบ</p>
-                            <a href="?page_id=2227" class="text-red-600 hover:underline text-sm">🚫 No Gift Policy</a>
-                        </div>
-
-                        <div class="border-l-4 border-red-500 pl-4">
-                            <h4 class="font-semibold text-gray-800">MOIT 13: จริยธรรมการจัดซื้อยา</h4>
-                            <p class="text-sm text-gray-600">การประเมินเกณฑ์จริยธรรมการจัดซื้อยาและเวชภัณฑ์</p>
-                            <a href="?page_id=2234" class="text-red-600 hover:underline text-sm">📈 รายงานประเมิน</a>
-                        </div>
-
-                        <div class="border-l-4 border-indigo-500 pl-4">
-                            <h4 class="font-semibold text-gray-800">MOIT 15-16: แผนป้องกันทุจริต</h4>
-                            <p class="text-sm text-gray-600">แผนปฏิบัติการและรายงานผล</p>
-                            <div class="mt-2 space-y-1">
-                                <a href="?page_id=2241" class="block text-indigo-600 hover:underline text-sm">• แผนป้องกันทุจริต</a>
-                                <a href="?page_id=2244" class="block text-indigo-600 hover:underline text-sm">• แผนส่งเสริมคุณธรรม</a>
-                            </div>
-                        </div>
-
-                        <div class="border-l-4 border-yellow-500 pl-4">
-                            <h4 class="font-semibold text-gray-800">MOIT 17-18: บริหารความเสี่ยง</h4>
-                            <p class="text-sm text-gray-600">การประเมินและควบคุมความเสี่ยงการทุจริต</p>
-                            <a href="?page_id=2255" class="text-yellow-600 hover:underline text-sm">⚠️ แผนบริหารความเสี่ยง</a>
-                        </div>
-
-                        <div class="border-l-4 border-teal-500 pl-4">
-                            <h4 class="font-semibold text-gray-800">MOIT 19-22: จริยธรรมและสิทธิมนุษยชน</h4>
-                            <p class="text-sm text-gray-600">การส่งเสริมจริยธรรมและป้องกันการล่วงละเมิด</p>
-                            <div class="mt-2 space-y-1">
-                                <a href="?page_id=2267" class="block text-teal-600 hover:underline text-sm">• เจตนารมณ์ป้องกันทุจริต</a>
-                                <a href="?page_id=2270" class="block text-teal-600 hover:underline text-sm">• คู่มือป้องกันการล่วงละเมิด</a>
-                            </div>
-                        </div>
-                    </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="completedItems">14</span>
+                    <span class="stat-label">ดำเนินการแล้ว</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="overallScore">64%</span>
+                    <span class="stat-label">คะแนนรวม</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="daysLeft">45</span>
+                    <span class="stat-label">วันที่เหลือ</span>
                 </div>
             </div>
         </div>
-    </section>
 
-    <!-- Key Documents Section -->
-    <section class="py-16">
-        <div class="container mx-auto px-4">
-            <h2 class="text-3xl font-bold text-center mb-12 text-gray-800">
-                เอกสารสำคัญ
-            </h2>
+        <div class="assessment-grid" id="moitGrid">
+            <!-- MOIT items will be dynamically generated here -->
+        </div>
 
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- จริยธรรม -->
-                <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition duration-300">
-                    <div class="text-center mb-4">
-                        <div class="text-4xl mb-3">⚖️</div>
-                        <h3 class="text-xl font-semibold text-gray-800">จริยธรรม</h3>
-                    </div>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="?page_id=1913" class="text-blue-600 hover:underline">• พ.ร.บ.มาตรฐานทางจริยธรรม 2562</a></li>
-                        <li><a href="?page_id=1915" class="text-blue-600 hover:underline">• ประมวลจริยธรรมข้าราชการ</a></li>
-                        <li><a href="?page_id=1917" class="text-blue-600 hover:underline">• ข้อกำหนดจริยธรรมเจ้าหน้าที่</a></li>
-                    </ul>
+        <div class="summary-section fade-in">
+            <h2 class="summary-title">สรุปผลการประเมินตามหมวดหมู่</h2>
+            
+            <div class="category-grid">
+                <div class="category-item">
+                    <span class="category-score">75%</span>
+                    <span class="category-name">การเปิดเผยข้อมูล</span>
                 </div>
-
-                <!-- ยุทธศาสตร์ -->
-                <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition duration-300">
-                    <div class="text-center mb-4">
-                        <div class="text-4xl mb-3">🎯</div>
-                        <h3 class="text-xl font-semibold text-gray-800">ยุทธศาสตร์</h3>
-                    </div>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="?page_id=1919" class="text-blue-600 hover:underline">• ยุทธศาสตร์ชาติ 2561-2580</a></li>
-                        <li><a href="?page_id=1942" class="text-blue-600 hover:underline">• นโยบายและยุทธศาสตร์หน่วยงาน</a></li>
-                        <li><a href="?page_id=1944" class="text-blue-600 hover:underline">• แผนปฏิบัติการประจำปี</a></li>
-                    </ul>
+                <div class="category-item">
+                    <span class="category-score">68%</span>
+                    <span class="category-name">การจัดซื้อจัดจ้าง</span>
                 </div>
-
-                <!-- คู่มือ -->
-                <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition duration-300">
-                    <div class="text-center mb-4">
-                        <div class="text-4xl mb-3">📚</div>
-                        <h3 class="text-xl font-semibold text-gray-800">คู่มือปฏิบัติ</h3>
-                    </div>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="?page_id=1953" class="text-blue-600 hover:underline">• คู่มือการร้องเรียน</a></li>
-                        <li><a href="?page_id=1955" class="text-blue-600 hover:underline">• คู่มือร้องเรียนทุจริต</a></li>
-                        <li><a href="?page_id=1957" class="text-blue-600 hover:underline">• คู่มือภารกิจหลัก</a></li>
-                    </ul>
+                <div class="category-item">
+                    <span class="category-score">58%</span>
+                    <span class="category-name">การบริหารบุคคล</span>
                 </div>
-
-                <!-- การจัดซื้อ -->
-                <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition duration-300">
-                    <div class="text-center mb-4">
-                        <div class="text-4xl mb-3">🛒</div>
-                        <h3 class="text-xl font-semibold text-gray-800">การจัดซื้อจัดจ้าง</h3>
-                    </div>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="?page_id=1967" class="text-blue-600 hover:underline">• วิเคราะห์ผลการจัดซื้อ</a></li>
-                        <li><a href="?page_id=1969" class="text-blue-600 hover:underline">• แผนจัดซื้อจัดจ้าง</a></li>
-                        <li><a href="?page_id=1974" class="text-blue-600 hover:underline">• แนวทางปฏิบัติการตรวจสอบ</a></li>
-                    </ul>
+                <div class="category-item">
+                    <span class="category-score">72%</span>
+                    <span class="category-name">การต่อต้านทุจริต</span>
                 </div>
-
-                <!-- รายงาน -->
-                <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition duration-300">
-                    <div class="text-center mb-4">
-                        <div class="text-4xl mb-3">📊</div>
-                        <h3 class="text-xl font-semibold text-gray-800">รายงานผล</h3>
-                    </div>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="?page_id=2248" class="text-blue-600 hover:underline">• รายงานป้องกันทุจริต</a></li>
-                        <li><a href="?page_id=2252" class="text-blue-600 hover:underline">• รายงานส่งเสริมคุณธรรม</a></li>
-                        <li><a href="?page_id=2186" class="text-blue-600 hover:underline">• รายงานการร้องเรียน</a></li>
-                    </ul>
+                <div class="category-item">
+                    <span class="category-score">45%</span>
+                    <span class="category-name">การมีส่วนร่วม</span>
                 </div>
-
-                <!-- ช่องทางติดต่อ -->
-                <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition duration-300">
-                    <div class="text-center mb-4">
-                        <div class="text-4xl mb-3">📞</div>
-                        <h3 class="text-xl font-semibold text-gray-800">ช่องทางติดต่อ</h3>
-                    </div>
-                    <ul class="space-y-2 text-sm">
-                        <li><a href="?page_id=2183" class="text-blue-600 hover:underline">• ช่องทางการร้องเรียน</a></li>
-                        <li><a href="?page_id=1905" class="text-blue-600 hover:underline">• ข้อมูลการติดต่อ</a></li>
-                        <li><a href="?page_id=1907" class="text-blue-600 hover:underline">• ช่องทางรับฟังความเห็น</a></li>
-                    </ul>
+                <div class="category-item">
+                    <span class="category-score">82%</span>
+                    <span class="category-name">สิทธิมนุษยชน</span>
                 </div>
             </div>
+
+            <div class="export-section">
+                <button class="btn btn-primary" onclick="generateReport()">📊 สร้างรายงานสรุป</button>
+                <button class="btn btn-secondary" onclick="exportData()">📁 ส่งออกข้อมูล</button>
+            </div>
         </div>
-    </section>
+    </div>
 
-    <!-- Progress Timeline -->
-    <section class="py-16 bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div class="container mx-auto px-4">
-            <h2 class="text-3xl font-bold text-center mb-12 text-gray-800">
-                ความคืบหน้าการดำเนินงาน ปีงบประมาณ 2568
-            </h2>
+    <script>
+        const moitData = [
+            {
+                number: 1,
+                title: "MOIT 1 : หน่วยงานมีการวางระบบโดยการกำหนดมาตรการการเผยแพร่ข้อมูลต่อสาธารณะผ่านเว็บไซต์ของ หน่วยงาน",
+                progress: 100,
+                requirements: [
+                    "คำสั่ง / ประกาศ ที่ระบุกรอบแนวทาง",
+                    "รายงานผลการกำกับติดตามการเผยแพร่ข้อมูลต่อสาธารณะผ่านเว็บไซต์ของหน่วยงาน ในปีที่ผ่านมา (ของปีงบประมาณ พ.ศ. 2567)"
+                ],
+                category: "transparency"
+            },
+            {
+                number: 2,
+                title: "MOIT 2 : หน่วยงานมีการเปิดเผยข้อมูลข่าวสารที่เป็นปัจจุบันและเป็นข้อมูลที่จำเป็นต่อการปฏิบัติงานของหน่วยงาน ตามกรอบแนวทางการเปิดเผยข้อมูลข่าวสารของหน่วยงาน",
+                progress: 100,
+                requirements: [
+                    "1. ข้อมูลพื้นฐานที่เป็นปัจจุบัน ประกอบด้วย",
+                    "1.1 ข้อมูลผู้บริหาร",
+                    "1.2 นโยบายของผู้บริหาร",
+                    "1.3 โครงสร้างหน่วยงาน",
+                    "1.4 หน้าที่และอำนาจของหน่วยงานตามกฎหมายจัดตั้ง หรือกฎหมายอื่นที่เกี่ยวข้อง",
+                    "1.5 กฎหมายที่เกี่ยวข้องกับการดำเนินงาน หรือการปฏิบัติงานของหน่วยงาน",
+                    "1.6 ข่าวประชาสัมพันธ์ ที่แสดงข้อมูลข่าวสารที่เกี่ยวกับการดำเนินงานตามหน้าที่และอำนาจ และภารกิจของหน่วยงาน และเป็นข้อมูลข่าวสารที่เกิดขึ้นในปีงบประมาณ พ.ศ. 2567",
+                    "1.7 ข้อมูลการติดต่อหน่วยงาน",
+                    "1.8 ช่องทางการรับฟังความคิดเห็นที่บุคคลภายนอกสามารถแสดงความคิดเห็นต่อการดำเนินงาน ตามหน้าที่และอำนาจและตามภารกิจของหน่วยงาน",
+                    "วิสัยทัศน์ พันธกิจ ค่านิยม MOPH",
+                    "พระราชบัญญัติมาตรฐานทางจริยธรรม พ.ศ. 2562",
+                    "ประมวลจริยธรรมข้าราชการพลเรือน พ.ศ. 2564",
+                    "ข้อกำหนดจริยธรรมเจ้าหน้าที่ของรัฐสำนักงานปลัดกระทรวงสาธารณสุข พ.ศ. 2564",
+                    "ยุทธศาสตร์และแผนระดับชาติ จำนวน 3 ระดับ ประกอบด้วย",
+                    "6.1 แผนระดับที่ 1 ได้แก่ ยุทธศาสตร์ชาติ พ.ศ. 2561-2580",
+                    "6.2 แผนระดับที่ 2 ได้แก่",
+                    "6.2.1 แผนแม่บทภายใต้ยุทธศาสตร์ชาติ (พ.ศ. 2566-2580) (ฉบับแก้ไขเพิ่มเติม)",
+                    "6.2.2 แผนพัฒนาเศรษฐกิจและสังคมแห่งชาติ ฉบับที่ 13 (พ.ศ. 2566-2570)",
+                    "6.2.3 นโยบายและแผนระดับชาติว่าด้วยความมั่นคงแห่งชาติ (พ.ศ. 2566-2570)",
+                    "6.3 แผนระดับที่ 3 ที่เกี่ยวข้องกับการต่อต้านการทุจริตและประพฤติมิชอบ และการส่งเสริม คุณธรรม จริยธรรม ได้แก่",
+                    "6.3.1 แผนปฏิบัติการด้านการต่อต้านการทุจริตและประพฤติมิชอบ ระยะที่ 2 (พ.ศ. 2566-2570)",
+                    "6.3.2 แผนปฏิบัติการด้านการส่งเสริมคุณธรรมแห่งชาติ ระยะที่ 2 (พ.ศ. 2566-2570)",
+                    "6.3.3 ยุทธศาสตร์ด้านมาตรฐานทางจริยธรรมและการส่งเสริมจริยธรรมภาครัฐ (พ.ศ. 2565-2570)",
+                    "แผนปฏิบัติการด้านการป้องกันปราบปรามการทุจริตและประพฤติมิชอบ และการส่งเสริม คุณธรรม จริยธรรม ของกระทรวงสาธารณสุข ประกอบด้วย",
+                    "7.1 แผนปฏิบัติราชการด้านการป้องกัน ปราบปรามการทุจริตและประพฤติมิชอบ กระทรวงสาธารณสุข ระยะที่ 2 (พ.ศ. 2566-2570)",
+                    "7.2 แผนปฏิบัติราชการด้านการส่งเสริมคุณธรรม จริยธรรม กระทรวงสาธารณสุข ระยะที่ 2 (พ.ศ. 2566-2570)",
+                    "นโยบายและยุทธศาสตร์ของหน่วยงาน",
+                    "แผนปฏิบัติการประจำปีของหน่วยงาน (แผนปฏิบัติการประจำปีของหน่วยงานทุกแผน)",
+                    "รายงานผลการดำเนินงานตามแผนปฏิบัติการประจำปีของหน่วยงาน (เป็นไปตามข้อ 9.)",
+                    "แผนการใช้จ่ายงบประมาณประจำปีของหน่วยงาน และผลการใช้จ่ายงบประมาณ ประจำปีของหน่วยงาน ตามแผนการใช้จ่ายงบประมาณประจำปีของหน่วยงาน",
+                    "คู่มือการปฏิบัติงานการร้องเรียนการปฏิบัติงานหรือให้บริการของเจ้าหน้าที่",
+                    "คู่มือการปฏิบัติงานการร้องเรียนการทุจริตและประพฤติมิชอบ",
+                    "คู่มือการปฏิบัติงานตามภารกิจหลักและภารกิจสนับสนุนของหน่วยงาน",
+                    "คู่มือขั้นตอนการให้บริการ (ภารกิจให้บริการประชาชนตามพระราชบัญญัติ การอำนวยความสะดวกในการพิจารณาอนุญาตของทางราชการ พ.ศ. 2558) (เฉพาะสำนักงานสาธารณสุขจังหวัด และสำนักงานสาธารณสุขอำเภอ)",
+                    "รายงานผลการดำเนินการเกี่ยวกับเรื่องร้องเรียนการปฏิบัติงานหรือการให้บริการ ประจำปีงบประมาณ พ.ศ. 2567",
+                    "รอบ 12 เดือน ประจำปีงบประมาณ พ.ศ. 2567",
+                    "รายงานผลการดำเนินการเกี่ยวกับเรื่องร้องเรียนการทุจริตและประพฤติมิชอบ ประจำปีงบประมาณ พ.ศ. 2567",
+                    "รอบ 12 เดือน ประจำปีงบประมาณ พ.ศ. 2567",
+                    "ข้อมูลการจัดซื้อจัดจ้าง ประกอบด้วย",
+                    "18.1 การวิเคราะห์ผลการจัดซื้อจัดจ้างและการจัดหาพัสดุของปีงบประมาณ พ.ศ. 2567",
+                    "18.2 แผนการจัดซื้อจัดจ้างและการจัดหาพัสดุ ประจำปีงบประมาณ พ.ศ. 2568",
+                    "18.3 ผลการดำเนินการตามแผนการจัดซื้อจัดจ้างและการจัดหาพัสดุ ประจำปี งบประมาณ พ.ศ. 2568 ตามรอบระยะเวลาที่กำหนดในกรอบแนวทางของหน่วยงาน",
+                    "18.4 ประกาศสำนักงานปลัดกระทรวงสาธารณสุขว่าด้วยแนวทางปฏิบัติงาน เพื่อตรวจสอบบุคลากรในหน่วยงานด้านการจัดซื้อจัดจ้าง พ.ศ. 2560 และแบบแสดงความบริสุทธิ์ใจในการจัดซื้อจัดจ้างของหน่วยงานในการเปิดเผยข้อมูล ความขัดแย้งทางผลประโยชน์ของหัวหน้าเจ้าหน้าที่"
+                ],
+                category: "transparency"
+            },
+            {
+                number: 3,
+                title: "MOIT 3 : หน่วยงานมีรายงานการวิเคราะห์ผลการจัดซื้อจัดจ้างและการจัดหาพัสดุ ของปีงบประมาณ พ.ศ. 2568",
+                progress: 100,
+                requirements: [
+                    "รายงานวิเคราะห์ปี 2567",
+                    "เตรียมรายงานปี 2568"
+                ],
+                category: "procurement"
+            },
+            {
+                number: 4,
+                title: "MOIT 4 : หน่วยงานมีการวางระบบการจัดซื้อจัดจ้างและการจัดหาพัสดุ ประจำปีงบประมาณ พ.ศ. 2568",
+                progress: 65,
+                requirements: [
+                    "ประกาศแผนจัดซื้อจัดจ้าง",
+                    "รายงานผลรายไตรมาส",
+                    "มาตรการป้องกันผลประโยชน์ทับซ้อน"
+                ],
+                category: "procurement"
+            },
+            {
+                number: 5,
+                title: "MOIT 5 : หน่วยงานมีการสรุปผลการจัดซื้อจัดจ้างและการจัดหาพัสดุรายเดือน ประจำปีงบประมาณ พ.ศ. 2568",
+                progress: 45,
+                requirements: [
+                    "ไตรมาส 1 แสดงแบบ สขร. 1 เดือนตุลาคม 2567-ธันวาคม 2567",
+                    "เดือน ตุลาคม 2567",
+                    "เดือน พฤศจิกายน 2567",
+                    "เดือน ธันวาคม 2567",
+                    "ไตรมาส 2 แสดงแบบ สขร. 1 เดือนมกราคม 2568-มีนาคม 2568",
+                    "เดือน มกราคม 2568",
+                    "เดือน กุมภาพันธ์ 2568",
+                    "เดือน มีนาคม 2568",
+        "- ไตรมาส 3 แสดงแบบ สขร. 1 เดือนเมษายน 2568-มิถุนายน 2568",
+     "เดือน เมษายน 2568",
+     "เดือน พฤษภาคม 2568",
+    "เดือน มิถุนายน 2568",
+    "- ไตรมาส 4 แสดงแบบ สขร. 1 เดือนกรกฎาคม 2568-กันยายน 2568",
+    "เดือน กรกฎาคม 2568",
+    "เดือน สิงหาคม 2568",
+    "เดือน กันยายน 2568"
+                ],
+                category: "procurement"
+            },
+            {
+                number: 6,
+                title: "MOIT 6 : ผู้บริหารแสดงนโยบายการบริหารและพัฒนาทรัพยากรบุคคล",
+                progress: 88,
+                requirements: [
+                    "นโยบายบริหารทรัพยากรบุคคล",
+                    "แผนการบริหารทรัพยากรบุคคล"
+                ],
+                category: "hr"
+            },
+            {
+                number: 7,
+                title: "MOIT 7 : หน่วยงานมีการรายงานการประเมินและเกี่ยวกับการประเมินผลการปฏิบัติราชการ ของบุคลากรในหน่วยงาน และเปิดเผยผลการปฏิบัติราชการ ระดับดีเด่น และระดับดีมาก ในที่เปิดเผยให้ทราบปีงบประมาณ พ.ศ. 2567 และปีงบประมาณ พ.ศ. 2568",
+                progress: 52,
+                requirements: [
+                    "รายงานประเมินผลรอบ 2 ปี 2567",
+                    "รายงานประเมินผลรอบ 1 ปี 2568"
+                ],
+                category: "hr"
+            },
+            {
+                number: 8,
+                title: "MOIT 8 : หน่วยงานมีการอบรมให้ความรู้แก่เจ้าหน้าที่ภายในหน่วยงานเกี่ยวกับการเสริมสร้าง และพัฒนาทางด้านจริยธรรม และการรักษาวินัย รวมทั้งการป้องกันมิให้กระทำผิดวินัย (0) ปีงบประมาณ พ.ศ. 2568",
+                progress: 35,
+                requirements: [
+                    "หลักสูตรอบรมด้านจริยธรรม ปี 2568"
+                ],
+                category: "hr"
+            },
+            {
+                number: 9,
+                title: "MOIT 9 : หน่วยงานมีแนวปฏิบัติการจัดการเรื่องร้องเรียน และช่องทางการร้องเรียน",
+                progress: 95,
+                requirements: [
+                    "คู่มือปฏิบัติการการดำเนินงานเรื่องร้องเรียนการปฏิบัติงานหรือการให้บริการ ของเจ้าหน้าที่ภายในหน่วยงาน ที่มีแบบฟอร์มการเผยแพร่ข้อมูลต่อสาธารณะผ่านเว็บไซต์ ของหน่วยงาน",
+                    "คู่มือปฏิบัติการการดำเนินงานเรื่องร้องเรียนการทุจริตและประพฤติมิชอบ",
+                    "ช่องทางการร้องเรียน ตามข้อ 1. และข้อ 2. อาทิ ผ่านระบบ หมายเลขโทรศัพท์ ผ่านระบบอินเตอร์เน็ต ผ่านระบบไปรษณีย์ ผ่าน Application หรือช่องทางอื่น ๆ ที่หน่วยงานกำหนดตามความเหมาะสม"
+                ],
+                category: "complaints"
+            },
+            {
+                number: 10,
+                title: "MOIT 10 : หน่วยงานมีสรุปผลการดำเนินงานเรื่องร้องเรียนการปฏิบัติงานหรือการให้บริการ ของเจ้าหน้าที่ภายในหน่วยงาน และเรื่องร้องเรียนการทุจริตและประพฤติมิชอบ",
+                progress: 68,
+                requirements: [
+                    "ไตรมาสที่ 2 (สรุปผลการดำเนินงานฯ รอบ 6 เดือน 1 ตุลาคม 2567-31 มีนาคม 2568)",
+                    "ไตรมาสที่ 4 (สรุปผลการดำเนินงานฯ รอบ 12 เดือน 1 ตุลาคม 2567-31 สิงหาคม 2568)"
+                ],
+                category: "complaints"
+            },
+            {
+                number: 11,
+                title: "MOIT 11 : หน่วยงานของท่านเปิดโอกาสให้ผู้มีส่วนได้ส่วนเสียมีโอกาสเข้ามามีส่วนร่วมในการดำเนินงาน ตามภารกิจของหน่วยงาน",
+                progress: 45,
+                requirements: [
+                    "หลักฐานโครงการ / กิจกรรมที่ดำเนินการ ตั้งแต่วันที่ 1 ตุลาคม 2567 ถึงวันที่ 31 สิงหาคม 2568",
+                    "หลักฐานโครงการ / กิจกรรมที่แสดงให้เห็นถึงกระบวนการมีส่วนร่วม ตั้งแต่ (1) กระบวนการ มีส่วนร่วมในการวางแผน (2) กระบวนการมีส่วนร่วมในการดำเนินการ และ (3) กระบวนการมีส่วนร่วม ในการติดตามประเมินผล",
+                    "หลักฐานแสดงถึงการมีส่วนร่วมตามกระบวนการในข้อ 2. โดยจะต้องระบุรายละเอียด ของผู้มีส่วนได้ส่วนเสียที่เข้ามาร่วมในการดำเนินการในแต่ละขั้นตอนด้วย",
+                    "ภาพกิจกรรม ต้องระบุวัน เวลา และสถานที่จัดกิจกรรมการประชุม / สัมมนา",
+                    "ผู้บังคับบัญชา จะต้องสั่งการหรืออนุญาตให้นำรายละเอียดการดำเนินงานไปเผยแพร่ ผ่านเว็บไซต์ของหน่วยงาน และมีแบบฟอร์มการเผยแพร่ข้อมูลต่อสาธารณะผ่านเว็บไซต์ของหน่วยงาน หรือสื่อสารเผยแพร่ในช่องทางอื่น"
+                ],
+                category: "participation"
+            },
+            {
+                number: 12,
+                title: "MOIT 12 : หน่วยงานมีมาตรการ “การป้องกันการรับสินบน” ที่เป็นระบบ",
+                progress: 82,
+                requirements: [
+                    "ประกาศ No Gift Policy",
+                    "มาตรการป้องกันในกระบวนการต่างๆ"
+                ],
+                category: "anticorruption"
+            },
+            {
+                number: 13,
+                title: "ประเมินเกณฑ์จริยธรรมการจัดซื้อยาและเวชภัณฑ์",
+                progress: 0,
+                requirements: [
+                    "รายงานการประเมินตามเกณฑ์ จ.ศ. 2564",
+                    "ดำเนินการให้เสร็จในไตรมาส 4"
+                ],
+                category: "anticorruption"
+            },
+            {
+                number: 14,
+                title: "แนวทางการใช้ทรัพย์สินของราชการ",
+                progress: 75,
+                requirements: [
+                    "แนวทางปฏิบัติการใช้ทรัพย์สิน",
+                    "ขั้นตอนการขออนุญาตยืม"
+                ],
+                category: "assets"
+            },
+            {
+                number: 15,
+                title: "แผนปฏิบัติการป้องกันทุจริตและส่งเสริมคุณธรรม",
+                progress: 90,
+                requirements: [
+                    "แผนป้องกันทุจริต ปี 2568",
+                    "แผนส่งเสริมคุณธรรมชมรมจริยธรรม"
+                ],
+                category: "anticorruption"
+            },
+            {
+                number: 16,
+                title: "รายงานผลการดำเนินงานตามแผนป้องกันทุจริต",
+                progress: 55,
+                requirements: [
+                    "รายงานผลรอบ 6 เดือน",
+                    "รายงานผลรอบ 12 เดือน"
+                ],
+                category: "anticorruption"
+            },
+            {
+                number: 17,
+                title: "การประเมินความเสี่ยงการทุจริต",
+                progress: 72,
+                requirements: [
+                    "การประชุมจัดทำแผนบริหารความเสี่ยง",
+                    "รายงานแผนบริหารความเสี่ยง ปี 2568"
+                ],
+                category: "risk"
+            },
+            {
+                number: 18,
+                title: "การปฏิบัติตามมาตรการป้องกันการทุจริต",
+                progress: 88,
+                requirements: [
+                    "การนำมาตรการป้องกันมาใช้"
+                ],
+                category: "anticorruption"
+            },
+            {
+                number: 19,
+                title: "รายงานการส่งเสริมการปฏิบัติตามประมวลจริยธรรม",
+                progress: 42,
+                requirements: [
+                    "รายงานการเรี่ยไรรอบ 6 เดือน",
+                    "รายงานการเรี่ยไรรอบ 12 เดือน"
+                ],
+                category: "ethics"
+            },
+            {
+                number: 20,
+                title: "การอบรมเรื่องผลประโยชน์ทับซ้อน",
+                progress: 78,
+                requirements: [
+                    "หลักสูตรต้านทุจริตศึกษา",
+                    "ประมวลผลภาพกิจกรรม"
+                ],
+                category: "training"
+            },
+            {
+                number: 21,
+                title: "การเผยแพร่เจตจำนงสุจริตและสิทธิมนุษยชน",
+                progress: 95,
+                requirements: [
+                    "เจตนารมณ์ป้องกันทุจริต",
+                    "เจตนารมณ์ป้องกันการล่วงละเมิดทางเพศ"
+                ],
+                category: "humanrights"
+            },
+            {
+                number: 22,
+                title: "MOIT 22 : หน่วยงานมีแนวปฏิบัติที่เคารพสิทธิมนุษยชนและศักดิ์ศรีของผู้ปฏิบัติงาน และรายงาน การป้องกันและแก้ไขปัญหาการล่วงละเมิดหรือคุกคามทางเพศในการทำงาน ประจำปีงบประมาณ พ.ศ. 2568",
+                progress: 68,
+                requirements: [
+                    "คู่มือแนวทางปฏิบัติการป้องกันและแก้ไขปัญหาการล่วงละเมิดหรือคุกคามทางเพศในการทำงานของหน่วยงาน",
+                    "รายงานผลการดำเนินงานตามมาตรการป้องกันและแก้ไขปัญหาการล่วงละเมิดทางเพศ ประจำปี 2568"
+                ],
+                category: "humanrights"
+            }
+        ];
 
-            <div class="max-w-4xl mx-auto">
-                <div class="relative">
-                    <!-- Timeline line -->
-                    <div class="absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-blue-300"></div>
+        function renderMOITCards() {
+            const grid = document.getElementById('moitGrid');
+            grid.innerHTML = '';
+            
+            moitData.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'moit-card fade-in';
+                card.style.animationDelay = `${index * 0.1}s`;
+                
+                const requirementsList = item.requirements.map(req => 
+                    `<li><span class="check-icon ${item.progress > 70 ? '' : 'incomplete'}">✓</span>${req}</li>`
+                ).join('');
+                
+                card.innerHTML = `
+                    <div class="moit-header">
+                        <div class="moit-number">${item.number}</div>
+                        <div class="moit-title">${item.title}</div>
+                    </div>
                     
-                    <!-- Timeline items -->
-                    <div class="space-y-12">
-                        <!-- Q1 -->
-                        <div class="relative flex items-center">
-                            <div class="flex-1 pr-8 text-right">
-                                <div class="bg-white rounded-lg p-6 shadow-lg">
-                                    <h3 class="text-lg font-semibold text-blue-600 mb-2">ไตรมาส 1</h3>
-                                    <p class="text-sm text-gray-600">ตุลาคม 2567 - ธันวาคม 2567</p>
-                                    <p class="text-sm mt-2">• จัดทำเอกสารพื้นฐาน<br>• เตรียมข้อมูลเผยแพร่</p>
-                                </div>
-                            </div>
-                            <div class="w-8 h-8 bg-blue-600 rounded-full border-4 border-white shadow-lg flex items-center justify-center relative z-10">
-                                <span class="text-white text-sm font-bold">1</span>
-                            </div>
-                            <div class="flex-1 pl-8"></div>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${item.progress}%"></div>
                         </div>
-
-                        <!-- Q2 -->
-                        <div class="relative flex items-center">
-                            <div class="flex-1 pr-8"></div>
-                            <div class="w-8 h-8 bg-green-600 rounded-full border-4 border-white shadow-lg flex items-center justify-center relative z-10">
-                                <span class="text-white text-sm font-bold">2</span>
-                            </div>
-                            <div class="flex-1 pl-8">
-                                <div class="bg-white rounded-lg p-6 shadow-lg">
-                                    <h3 class="text-lg font-semibold text-green-600 mb-2">ไตรมาส 2</h3>
-                                    <p class="text-sm text-gray-600">มกราคม 2568 - มีนาคม 2568</p>
-                                    <p class="text-sm mt-2">• รายงานผลการดำเนินงาน<br>• ประเมินความเสี่ยงการทุจริต</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Q3 -->
-                        <div class="relative flex items-center">
-                            <div class="flex-1 pr-8 text-right">
-                                <div class="bg-white rounded-lg p-6 shadow-lg">
-                                    <h3 class="text-lg font-semibold text-orange-600 mb-2">ไตรมาส 3</h3>
-                                    <p class="text-sm text-gray-600">เมษายน 2568 - มิถุนายน 2568</p>
-                                    <p class="text-sm mt-2">• ติดตามและประเมินผล<br>• ปรับปรุงการดำเนินงาน</p>
-                                </div>
-                            </div>
-                            <div class="w-8 h-8 bg-orange-600 rounded-full border-4 border-white shadow-lg flex items-center justify-center relative z-10">
-                                <span class="text-white text-sm font-bold">3</span>
-                            </div>
-                            <div class="flex-1 pl-8"></div>
-                        </div>
-
-                        <!-- Q4 -->
-                        <div class="relative flex items-center">
-                            <div class="flex-1 pr-8"></div>
-                            <div class="w-8 h-8 bg-purple-600 rounded-full border-4 border-white shadow-lg flex items-center justify-center relative z-10">
-                                <span class="text-white text-sm font-bold">4</span>
-                            </div>
-                            <div class="flex-1 pl-8">
-                                <div class="bg-white rounded-lg p-6 shadow-lg">
-                                    <h3 class="text-lg font-semibold text-purple-600 mb-2">ไตรมาส 4</h3>
-                                    <p class="text-sm text-gray-600">กรกฎาคม 2568 - กันยายน 2568</p>
-                                    <p class="text-sm mt-2">• สรุปผลการดำเนินงาน<br>• จัดส่งรายงานประจำปี</p>
-                                </div>
-                            </div>
+                        <div class="progress-text">
+                            <span>ความคืบหน้า</span>
+                            <span><strong>${item.progress}%</strong></span>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Contact and Feedback -->
-    <section class="py-16">
-        <div class="container mx-auto px-4">
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-white rounded-lg shadow-lg p-8">
-                    <h2 class="text-3xl font-bold text-center mb-8 text-gray-800">
-                        ติดต่อสอบถามและแสดงความคิดเห็น
-                    </h2>
                     
-                    <div class="grid md:grid-cols-2 gap-8">
-                        <div>
-                            <h3 class="text-xl font-semibold mb-4 text-blue-600">📧 ติดต่อสอบถาม</h3>
-                            <div class="space-y-3">
-                                <div class="flex items-center space-x-3">
-                                    <div class="text-blue-500">📍</div>
-                                    <div>
-                                        <p class="font-medium">โรงพยาบาลทุ่งหัวช้าง</p>
-                                        <p class="text-sm text-gray-600">123 ถนนหลัก ตำบลทุ่งหัวช้าง อำเภอเมือง จังหวัดลำพูน 51000</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center space-x-3">
-                                    <div class="text-blue-500">📞</div>
-                                    <div>
-                                        <p class="font-medium">053-580-xxx</p>
-                                        <p class="text-sm text-gray-600">เวลาทำการ: จันทร์-ศุกร์ 08:00-16:30</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center space-x-3">
-                                    <div class="text-blue-500">📧</div>
-                                    <div>
-                                        <p class="font-medium">info@thchospital.go.th</p>
-                                        <p class="text-sm text-gray-600">อีเมลสำหรับติดต่อสอบถาม</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <h3 class="text-xl font-semibold mb-4 text-green-600">💬 ช่องทางแสดงความคิดเห็น</h3>
-                            <div class="space-y-3">
-                                <div class="bg-green-50 p-4 rounded-lg">
-                                    <h4 class="font-medium mb-2">ช่องทางออนไลน์</h4>
-                                    <p class="text-sm text-gray-600 mb-2">
-                                        ท่านสามารถแสดงความคิดเห็นเกี่ยวกับการดำเนินงาน MOPH ITA ได้ผ่านช่องทางต่าง ๆ
-                                    </p>
-                                    <div class="space-y-1 text-sm">
-                                        <p>• เว็บไซต์: www.thchospital.go.th</p>
-                                        <p>• Facebook: โรงพยาบาลทุ่งหัวช้าง</p>
-                                        <p>• Line Official Account</p>
-                                    </div>
-                                </div>
-                                
-                                <div class="bg-yellow-50 p-4 rounded-lg">
-                                    <h4 class="font-medium mb-2">การร้องเรียน</h4>
-                                    <p class="text-sm text-gray-600 mb-2">
-                                        หากพบการปฏิบัติที่ไม่เหมาะสมหรือต้องการร้องเรียน
-                                    </p>
-                                    <div class="space-y-1 text-sm">
-                                        <p>• หมายเลขโทรศัพท์: 053-580-xxx</p>
-                                        <p>• กล่องรับความคิดเห็น</p>
-                                        <p>• ระบบรับเรื่องร้องเรียนออนไลน์</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mt-8 text-center">
-                        <div class="bg-blue-50 rounded-lg p-6">
-                            <h4 class="text-lg font-semibold text-blue-800 mb-2">
-                                🤝 ร่วมกันสร้างองค์กรที่มีคุณธรรมและความโปร่งใส
-                            </h4>
-                            <p class="text-gray-600">
-                                ความคิดเห็นและข้อเสนอแนะของท่านมีความสำคัญต่อการพัฒนาการดำเนินงานของเรา
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- FAQ Section -->
-    <section class="py-16 bg-gray-50">
-        <div class="container mx-auto px-4">
-            <h2 class="text-3xl font-bold text-center mb-12 text-gray-800">
-                คำถามที่พบบ่อย (FAQ)
-            </h2>
-
-            <div class="max-w-4xl mx-auto">
-                <div class="space-y-6">
-                    <div class="bg-white rounded-lg shadow-lg p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                            ❓ MOPH ITA คืออะไร?
-                        </h3>
-                        <p class="text-gray-600">
-                            MOPH ITA (Ministry of Public Health Integrity and Transparency Assessment) 
-                            เป็นโครงการประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานใน
-                            สังกัดกระทรวงสาธารณสุข เพื่อส่งเสริมการบริหารงานที่มีคุณธรรมและโปร่งใส
-                        </p>
-                    </div>
-
-                    <div class="bg-white rounded-lg shadow-lg p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                            ❓ มีเกณฑ์การประเมินกี่ข้อ?
-                        </h3>
-                        <p class="text-gray-600">
-                            การประเมิน MOPH ITA มีเกณฑ์การประเมินทั้งหมด 22 ข้อ (MOIT 1-22) 
-                            ครอบคลุมด้านการเผยแพร่ข้อมูล การจัดซื้อจัดจ้าง การบริหารทรัพยากรบุคคล 
-                            การป้องกันการทุจริต และการส่งเสริมจริยธรรม
-                        </p>
-                    </div>
-
-                    <div class="bg-white rounded-lg shadow-lg p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                            ❓ ประชาชนสามารถเข้าถึงข้อมูลได้อย่างไร?
-                        </h3>
-                        <p class="text-gray-600">
-                            ประชาชนสามารถเข้าถึงข้อมูลต่าง ๆ ได้ผ่านเว็บไซต์ของโรงพยาบาล 
-                            ซึ่งมีการเผยแพร่ข้อมูลตามเกณฑ์ที่กำหนด รวมถึงข้อมูลการจัดซื้อจัดจ้าง 
-                            แผนปฏิบัติการ รายงานผลการดำเนินงาน และช่องทางการติดต่อต่าง ๆ
-                        </p>
-                    </div>
-
-                    <div class="bg-white rounded-lg shadow-lg p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                            ❓ หากมีข้อร้องเรียนจะติดต่ออย่างไร?
-                        </h3>
-                        <p class="text-gray-600">
-                            ท่านสามารถร้องเรียนได้หลายช่องทาง เช่น โทรศัพท์ 053-580-xxx, 
-                            อีเมล info@thchospital.go.th, เว็บไซต์ของโรงพยาบาล หรือกล่องรับความคิดเห็น 
-                            โรงพยาบาลมีระบบการจัดการเรื่องร้องเรียนที่เป็นระบบและโปร่งใส
-                        </p>
-                    </div>
-
-                    <div class="bg-white rounded-lg shadow-lg p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                            ❓ No Gift Policy คืออะไร?
-                        </h3>
-                        <p class="text-gray-600">
-                            No Gift Policy เป็นนโยบายที่เจ้าหน้าที่ของรัฐทุกคนไม่รับของขวัญและของกำนัล
-                            ทุกชนิดจากการปฏิบัติหน้าที่ เพื่อป้องกันการเกิดผลประโยชน์ทับซ้อนและสร้าง
-                            ความโปร่งใสในการปฏิบัติงาน
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Statistics Dashboard -->
-    <section class="py-16">
-        <div class="container mx-auto px-4">
-            <h2 class="text-3xl font-bold text-center mb-12 text-gray-800">
-                สถิติการดำเนินงาน MOPH ITA
-            </h2>
-
-            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-6 text-white text-center">
-                    <div class="text-3xl font-bold mb-2">22</div>
-                    <div class="text-sm opacity-90">เกณฑ์การประเมิน</div>
-                    <div class="text-xs opacity-75 mt-1">MOIT 1-22</div>
-                </div>
-
-                <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white text-center">
-                    <div class="text-3xl font-bold mb-2">4</div>
-                    <div class="text-sm opacity-90">ไตรมาสรายงาน</div>
-                    <div class="text-xs opacity-75 mt-1">ตลอดปีงบประมาณ</div>
-                </div>
-
-                <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-6 text-white text-center">
-                    <div class="text-3xl font-bold mb-2">100%</div>
-                    <div class="text-sm opacity-90">ความโปร่งใส</div>
-                    <div class="text-xs opacity-75 mt-1">เป้าหมายการดำเนินงาน</div>
-                </div>
-
-                <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-6 text-white text-center">
-                    <div class="text-3xl font-bold mb-2">24/7</div>
-                    <div class="text-sm opacity-90">ช่องทางติดต่อ</div>
-                    <div class="text-xs opacity-75 mt-1">พร้อมให้บริการ</div>
-                </div>
-            </div>
-
-            <!-- Progress Chart Placeholder -->
-            <div class="mt-12">
-                <div class="bg-white rounded-lg shadow-lg p-8">
-                    <h3 class="text-xl font-semibold text-center mb-6 text-gray-800">
-                        ความคืบหน้าการดำเนินงานตามเกณฑ์ MOIT
-                    </h3>
+                    <ul class="requirements-list">
+                        ${requirementsList}
+                    </ul>
                     
-                    <div class="space-y-4">
-                        <!-- Progress bars -->
-                        <div class="flex items-center space-x-4">
-                            <div class="w-32 text-sm font-medium">ข้อมูลพื้นฐาน</div>
-                            <div class="flex-1 bg-gray-200 rounded-full h-3">
-                                <div class="bg-blue-500 h-3 rounded-full" style="width: 90%"></div>
-                            </div>
-                            <div class="w-12 text-sm text-gray-600">90%</div>
-                        </div>
-
-                        <div class="flex items-center space-x-4">
-                            <div class="w-32 text-sm font-medium">การจัดซื้อจัดจ้าง</div>
-                            <div class="flex-1 bg-gray-200 rounded-full h-3">
-                                <div class="bg-green-500 h-3 rounded-full" style="width: 85%"></div>
-                            </div>
-                            <div class="w-12 text-sm text-gray-600">85%</div>
-                        </div>
-
-                        <div class="flex items-center space-x-4">
-                            <div class="w-32 text-sm font-medium">บริหารบุคลากร</div>
-                            <div class="flex-1 bg-gray-200 rounded-full h-3">
-                                <div class="bg-purple-500 h-3 rounded-full" style="width: 88%"></div>
-                            </div>
-                            <div class="w-12 text-sm text-gray-600">88%</div>
-                        </div>
-
-                        <div class="flex items-center space-x-4">
-                            <div class="w-32 text-sm font-medium">ป้องกันทุจริต</div>
-                            <div class="flex-1 bg-gray-200 rounded-full h-3">
-                                <div class="bg-red-500 h-3 rounded-full" style="width: 92%"></div>
-                            </div>
-                            <div class="w-12 text-sm text-gray-600">92%</div>
-                        </div>
-
-                        <div class="flex items-center space-x-4">
-                            <div class="w-32 text-sm font-medium">จริยธรรม</div>
-                            <div class="flex-1 bg-gray-200 rounded-full h-3">
-                                <div class="bg-indigo-500 h-3 rounded-full" style="width: 95%"></div>
-                            </div>
-                            <div class="w-12 text-sm text-gray-600">95%</div>
-                        </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="viewDetails(${item.number})">ดูรายละเอียด</button>
+                        <button class="btn btn-secondary" onclick="updateProgress(${item.number})">อัปเดต</button>
                     </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
 
-                    <div class="mt-6 text-center">
-                        <div class="inline-flex items-center space-x-2 bg-green-100 text-green-800 px-4 py-2 rounded-full">
-                            <div class="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span class="text-sm font-medium">ความคืบหน้ารวม: 90%</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+        function viewDetails(moitNumber) {
+            alert(`กำลังเปิดรายละเอียด MOIT ${moitNumber}`);
+        }
 
-    <!-- Call to Action -->
-    <section class="py-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-        <div class="container mx-auto px-4 text-center">
-            <h2 class="text-3xl font-bold mb-4">ร่วมสร้างองค์กรที่มีคุณธรรม</h2>
-            <p class="text-xl mb-8 opacity-90">
-                โรงพยาบาลทุ่งหัวช้างมุ่งมั่นดำเนินงานด้วยความโปร่งใสและมีคุณธรรม
-            </p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="contact.php" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-300">
-                    📞 ติดต่อสอบถาม
-                </a>
-                <a href="?page_id=2183" class="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition duration-300">
-                    💬 ช่องทางร้องเรียน
-                </a>
-            </div>
-        </div>
-    </section>
-</main>
+        function updateProgress(moitNumber) {
+            const card = event.target.closest('.moit-card');
+            card.classList.add('loading');
+            
+            setTimeout(() => {
+                card.classList.remove('loading');
+                alert(`อัปเดต MOIT ${moitNumber} เรียบร้อยแล้ว`);
+            }, 1500);
+        }
 
-<style>
-/* Additional styles for ITA page */
-.prose {
-    line-height: 1.7;
-}
+        function generateReport() {
+            alert('กำลังสร้างรายงานสรุป...\n\nรายงานจะรวมถึง:\n- ผลการประเมินแต่ละรายการ\n- แผนภูมิเปรียบเทียบ\n- ข้อเสนอแนะการปรับปรุง');
+        }
 
-.hover\:shadow-xl:hover {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
+        function exportData() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                totalItems: moitData.length,
+                completedItems: moitData.filter(item => item.progress >= 70).length,
+                overallScore: Math.round(moitData.reduce((sum, item) => sum + item.progress, 0) / moitData.length),
+                details: moitData
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `MOIT_Assessment_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+        }
 
-/* Animation for progress bars */
-@keyframes progressAnimation {
-    from { width: 0%; }
-}
-
-.bg-blue-500, .bg-green-500, .bg-purple-500, .bg-red-500, .bg-indigo-500 {
-    animation: progressAnimation 2s ease-out;
-}
-
-/* Timeline styles */
-.timeline-line {
-    background: linear-gradient(to bottom, #3B82F6, #10B981, #F59E0B, #8B5CF6);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .timeline-line {
-        left: 2rem;
-    }
-    
-    .timeline-item {
-        padding-left: 4rem;
-    }
-}
-
-/* Print styles */
-@media print {
-    .bg-gradient-to-r,
-    .bg-gradient-to-br {
-        background: #f8f9fa !important;
-        color: #333 !important;
-    }
-    
-    .shadow-lg {
-        box-shadow: none !important;
-        border: 1px solid #ddd !important;
-    }
-}
-</style>
-
-<?php
-// Helper function for formatting Thai dates (if not already defined)
-if (!function_exists('formatThaiDate')) {
-    function formatThaiDate($date) {
-        if (!$date) return '';
-        
-        $thaiMonths = array(
-            1 => 'มกราคม', 2 => 'กุมภาพันธ์', 3 => 'มีนาคม', 4 => 'เมษายน',
-            5 => 'พฤษภาคม', 6 => 'มิถุนายน', 7 => 'กรกฎาคม', 8 => 'สิงหาคม',
-            9 => 'กันยายน', 10 => 'ตุลาคม', 11 => 'พฤศจิกายน', 12 => 'ธันวาคม'
-        );
-        
-        $timestamp = strtotime($date);
-        $day = date('j', $timestamp);
-        $month = $thaiMonths[(int)date('n', $timestamp)];
-        $year = date('Y', $timestamp) + 543;
-        
-        return "$day $month $year";
-    }
-}
-
-// Helper function for logging errors (if not already defined)
-if (!function_exists('logError')) {
-    function logError($message, $file, $line) {
-        error_log("Error in $file at line $line: $message");
-    }
-}
-?>
-
-<?php include 'includes/footer.php'; ?>
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            renderMOITCards();
+            
+            // Update stats
+            const completedItems = moitData.filter(item => item.progress >= 70).length;
+            const overallScore = Math.round(moitData.reduce((sum, item) => sum + item.progress, 0) / moitData.length);
+            
+            document.getElementById('completedItems').textContent = completedItems;
+            document.getElementById('overallScore').textContent = overallScore + '%';
+            
+            // Animate progress bars
+            setTimeout(() => {
+                const progressBars = document.querySelectorAll('.progress-fill');
+                progressBars.forEach(bar => {
+                    const width = bar.style.width;
+                    bar.style.width = '0%';
+                    setTimeout(() => {
+                        bar.style.width = width;
+                    }, 500);
+                });
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

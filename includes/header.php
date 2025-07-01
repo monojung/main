@@ -104,6 +104,7 @@
                         </div>
                     </div>
                     <a href="news.php" class="text-gray-700 hover:text-blue-600 font-medium transition duration-300">ข่าวสาร</a>
+                    <a href="ita.php" class="text-gray-700 hover:text-blue-600 font-medium transition duration-300">ITA</a>
                     <a href="contact.php" class="text-gray-700 hover:text-blue-600 font-medium transition duration-300">ติดต่อ</a>
                     <a href="login.php" class="text-gray-700 hover:text-blue-600 font-medium transition duration-300">เจ้าหน้าที่</a>
                 </div>

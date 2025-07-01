@@ -1,29 +1,4 @@
-</div>
-
-                <!-- Daily News Chart -->
-                <?php if (!empty($report_data['daily_news'])): ?>
-                <div class="glass-card rounded-2xl p-6 fade-in">
-                    <h3 class="text-xl font-semibold text-gray-800 mb-6">📈 ข่าวสารรายวัน</h3>
-                    <div class="h-64">
-                        <canvas id="dailyNewsChart"></canvas>
-                    </div>
-                </div>
-                <?php endif; ?>
-                <?php endif; ?>
-
-                <!-- News Report -->
-                <?php if ($report_type === 'news'): ?>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- News by Status -->
-                    <?php if (!empty($report_data['by_status'])): ?>
-                    <div class="glass-card rounded-2xl p-6 fade-in">
-                        <h3 class="text-xl font-semibold text-gray-800 mb-6">📊 ข่าวสารตามสถานะ</h3>
-                        <div class="space-y-3">
-                            <?php foreach ($report_data['by_status'] as $item): ?>
-                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                                <span class="text-gray-700 font-medium">
-                                    <?php 
-                                    $status_names = ['published' => 'เผยแพร่', 'draft'<?php
+<?php
 require_once '../includes/auth.php';
 require_once '../config/database.php';
 require_once 'functions.php';
@@ -83,7 +58,13 @@ function generateOverviewReport($conn, $start_date, $end_date) {
     // Total statistics
     $data['total_users'] = getTotalUsers($conn);
     $data['total_news'] = getTotalNews($conn);
-    $data['total_ita'] = getTotalITA($conn);
+    
+    // Try to get ITA total, if table doesn't exist, set to 0
+    try {
+        $data['total_ita'] = getTotalITA($conn);
+    } catch (Exception $e) {
+        $data['total_ita'] = 0;
+    }
     
     // Period statistics
     $stmt = $conn->prepare("
@@ -159,17 +140,22 @@ function generateNewsReport($conn, $start_date, $end_date) {
     $stmt->execute([$start_date, $end_date]);
     $data['by_author'] = $stmt->fetchAll();
     
-    // Most viewed news
-    $stmt = $conn->prepare("
-        SELECT title, views, created_at
-        FROM news 
-        WHERE DATE(created_at) BETWEEN ? AND ?
-        AND status = 'published'
-        ORDER BY views DESC
-        LIMIT 10
-    ");
-    $stmt->execute([$start_date, $end_date]);
-    $data['most_viewed'] = $stmt->fetchAll();
+    // Most viewed news (if views column exists)
+    try {
+        $stmt = $conn->prepare("
+            SELECT title, views, created_at
+            FROM news 
+            WHERE DATE(created_at) BETWEEN ? AND ?
+            AND status = 'published'
+            ORDER BY views DESC
+            LIMIT 10
+        ");
+        $stmt->execute([$start_date, $end_date]);
+        $data['most_viewed'] = $stmt->fetchAll();
+    } catch (Exception $e) {
+        // Views column doesn't exist
+        $data['most_viewed'] = [];
+    }
     
     // Featured vs regular
     $stmt = $conn->prepare("
@@ -208,29 +194,37 @@ function generateUsersReport($conn, $start_date, $end_date) {
     $stmt->execute();
     $data['by_role'] = $stmt->fetchAll();
     
-    // Users by department
-    $stmt = $conn->prepare("
-        SELECT d.name as department, COUNT(*) as count
-        FROM users u
-        LEFT JOIN departments d ON u.department_id = d.id
-        WHERE u.is_active = 1
-        GROUP BY u.department_id, d.name
-        ORDER BY count DESC
-    ");
-    $stmt->execute();
-    $data['by_department'] = $stmt->fetchAll();
+    // Users by department (if table exists)
+    try {
+        $stmt = $conn->prepare("
+            SELECT d.name as department, COUNT(*) as count
+            FROM users u
+            LEFT JOIN departments d ON u.department_id = d.id
+            WHERE u.is_active = 1
+            GROUP BY u.department_id, d.name
+            ORDER BY count DESC
+        ");
+        $stmt->execute();
+        $data['by_department'] = $stmt->fetchAll();
+    } catch (Exception $e) {
+        $data['by_department'] = [];
+    }
     
-    // Login activity
-    $stmt = $conn->prepare("
-        SELECT DATE(last_login) as date, COUNT(*) as count
-        FROM users 
-        WHERE DATE(last_login) BETWEEN ? AND ?
-        AND is_active = 1
-        GROUP BY DATE(last_login)
-        ORDER BY DATE(last_login)
-    ");
-    $stmt->execute([$start_date, $end_date]);
-    $data['login_activity'] = $stmt->fetchAll();
+    // Login activity (if last_login column exists)
+    try {
+        $stmt = $conn->prepare("
+            SELECT DATE(last_login) as date, COUNT(*) as count
+            FROM users 
+            WHERE DATE(last_login) BETWEEN ? AND ?
+            AND is_active = 1
+            GROUP BY DATE(last_login)
+            ORDER BY DATE(last_login)
+        ");
+        $stmt->execute([$start_date, $end_date]);
+        $data['login_activity'] = $stmt->fetchAll();
+    } catch (Exception $e) {
+        $data['login_activity'] = [];
+    }
     
     return $data;
 }
@@ -528,3 +522,400 @@ function generateActivityReport($conn, $start_date, $end_date) {
                         </div>
                     </div>
                 </div>
+
+                <!-- Daily News Chart -->
+                <?php if (!empty($report_data['daily_news'])): ?>
+                <div class="glass-card rounded-2xl p-6 fade-in">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6">📈 ข่าวสารรายวัน</h3>
+                    <div class="h-64">
+                        <canvas id="dailyNewsChart"></canvas>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <?php endif; ?>
+
+                <!-- News Report -->
+                <?php if ($report_type === 'news'): ?>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- News by Status -->
+                    <?php if (!empty($report_data['by_status'])): ?>
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6">📊 ข่าวสารตามสถานะ</h3>
+                        <div class="space-y-3">
+                            <?php foreach ($report_data['by_status'] as $item): ?>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                <span class="text-gray-700 font-medium">
+                                    <?php 
+                                    $status_names = ['published' => 'เผยแพร่', 'draft' => 'ร่าง', 'archived' => 'เก็บถาวร'];
+                                    echo $status_names[$item['status']] ?? $item['status'];
+                                    ?>
+                                </span>
+                                <span class="font-bold text-blue-600"><?php echo number_format($item['count']); ?></span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- News by Author -->
+                    <?php if (!empty($report_data['by_author'])): ?>
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6">✍️ ข่าวสารตามผู้เขียน</h3>
+                        <div class="space-y-3">
+                            <?php foreach ($report_data['by_author'] as $item): ?>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                <span class="text-gray-700 font-medium">
+                                    <?php echo htmlspecialchars($item['first_name'] . ' ' . $item['last_name']); ?>
+                                </span>
+                                <span class="font-bold text-green-600"><?php echo number_format($item['count']); ?></span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- Featured Stats -->
+                    <?php if (!empty($report_data['featured_stats'])): ?>
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6">⭐ ข่าวเด่น vs ข่าวทั่วไป</h3>
+                        <div class="space-y-3">
+                            <?php foreach ($report_data['featured_stats'] as $item): ?>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                <span class="text-gray-700 font-medium">
+                                    <?php echo $item['is_featured'] ? 'ข่าวเด่น' : 'ข่าวทั่วไป'; ?>
+                                </span>
+                                <span class="font-bold text-purple-600"><?php echo number_format($item['count']); ?></span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+
+                <!-- Users Report -->
+                <?php if ($report_type === 'users'): ?>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Users by Role -->
+                    <?php if (!empty($report_data['by_role'])): ?>
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6">👤 ผู้ใช้ตามบทบาท</h3>
+                        <div class="space-y-3">
+                            <?php foreach ($report_data['by_role'] as $item): ?>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                <span class="text-gray-700 font-medium">
+                                    <?php 
+                                    $role_names = ['admin' => 'ผู้ดูแลระบบ', 'editor' => 'บรรณาธิการ', 'user' => 'ผู้ใช้ทั่วไป'];
+                                    echo $role_names[$item['role']] ?? $item['role'];
+                                    ?>
+                                </span>
+                                <span class="font-bold text-blue-600"><?php echo number_format($item['count']); ?></span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- New Users in Period -->
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6">🆕 ผู้ใช้ใหม่ในช่วงเวลา</h3>
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-green-600 mb-2">
+                                <?php echo number_format($report_data['new_users']); ?>
+                            </div>
+                            <p class="text-gray-600">ผู้ใช้ใหม่</p>
+                            <p class="text-sm text-gray-500 mt-2">
+                                ตั้งแต่ <?php echo safeFormatThaiDate($start_date); ?> ถึง <?php echo safeFormatThaiDate($end_date); ?>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Users by Department -->
+                    <?php if (!empty($report_data['by_department'])): ?>
+                    <div class="glass-card rounded-2xl p-6 fade-in">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6">🏢 ผู้ใช้ตามแผนก</h3>
+                        <div class="space-y-3">
+                            <?php foreach ($report_data['by_department'] as $item): ?>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                <span class="text-gray-700 font-medium">
+                                    <?php echo htmlspecialchars($item['department'] ?: 'ไม่ระบุแผนก'); ?>
+                                </span>
+                                <span class="font-bold text-purple-600"><?php echo number_format($item['count']); ?></span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+
+                <!-- ITA Report -->
+                <?php if ($report_type === 'ita'): ?>
+                    <?php if (isset($report_data['error'])): ?>
+                    <div class="glass-card rounded-2xl p-8 text-center fade-in">
+                        <div class="text-6xl mb-4">🔧</div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">ยังไม่มีข้อมูล ITA</h3>
+                        <p class="text-gray-600"><?php echo $report_data['error']; ?></p>
+                        <p class="text-sm text-gray-500 mt-2">กรุณาสร้างตาราง ITA หรือเลือกรายงานประเภทอื่น</p>
+                    </div>
+                    <?php else: ?>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- ITA by Status -->
+                        <?php if (!empty($report_data['by_status'])): ?>
+                        <div class="glass-card rounded-2xl p-6 fade-in">
+                            <h3 class="text-xl font-semibold text-gray-800 mb-6">📊 ITA ตามสถานะ</h3>
+                            <div class="space-y-3">
+                                <?php foreach ($report_data['by_status'] as $item): ?>
+                                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                    <span class="text-gray-700 font-medium"><?php echo htmlspecialchars($item['status']); ?></span>
+                                    <span class="font-bold text-blue-600"><?php echo number_format($item['count']); ?></span>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
+                        <!-- ITA by Priority -->
+                        <?php if (!empty($report_data['by_priority'])): ?>
+                        <div class="glass-card rounded-2xl p-6 fade-in">
+                            <h3 class="text-xl font-semibold text-gray-800 mb-6">⚡ ITA ตามความสำคัญ</h3>
+                            <div class="space-y-3">
+                                <?php foreach ($report_data['by_priority'] as $item): ?>
+                                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                    <span class="text-gray-700 font-medium"><?php echo htmlspecialchars($item['priority']); ?></span>
+                                    <span class="font-bold text-orange-600"><?php echo number_format($item['count']); ?></span>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+                <!-- Activity Report -->
+                <?php if ($report_type === 'activity'): ?>
+                    <?php if (isset($report_data['error'])): ?>
+                    <div class="glass-card rounded-2xl p-8 text-center fade-in">
+                        <div class="text-6xl mb-4">📝</div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">ยังไม่มีข้อมูลกิจกรรม</h3>
+                        <p class="text-gray-600"><?php echo $report_data['error']; ?></p>
+                        <p class="text-sm text-gray-500 mt-2">กรุณาสร้างตาราง Activity Logs หรือเลือกรายงานประเภทอื่น</p>
+                    </div>
+                    <?php else: ?>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Activity by Action -->
+                        <?php if (!empty($report_data['by_action'])): ?>
+                        <div class="glass-card rounded-2xl p-6 fade-in">
+                            <h3 class="text-xl font-semibold text-gray-800 mb-6">🎯 กิจกรรมตามประเภท</h3>
+                            <div class="space-y-3">
+                                <?php foreach ($report_data['by_action'] as $item): ?>
+                                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                    <span class="text-gray-700 font-medium"><?php echo htmlspecialchars($item['action']); ?></span>
+                                    <span class="font-bold text-blue-600"><?php echo number_format($item['count']); ?></span>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
+                        <!-- Activity by User -->
+                        <?php if (!empty($report_data['by_user'])): ?>
+                        <div class="glass-card rounded-2xl p-6 fade-in">
+                            <h3 class="text-xl font-semibold text-gray-800 mb-6">👥 กิจกรรมตามผู้ใช้</h3>
+                            <div class="space-y-3">
+                                <?php foreach ($report_data['by_user'] as $item): ?>
+                                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                    <span class="text-gray-700 font-medium">
+                                        <?php echo htmlspecialchars($item['first_name'] . ' ' . $item['last_name']); ?>
+                                    </span>
+                                    <span class="font-bold text-green-600"><?php echo number_format($item['count']); ?></span>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+                <?php endif; ?>
+            </div>
+
+            <!-- Export Options -->
+            <div class="glass-card rounded-2xl p-6 mt-8 fade-in">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">📤 ส่งออกรายงาน</h3>
+                <div class="flex flex-wrap gap-4">
+                    <button onclick="exportToPDF()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-200 flex items-center space-x-2">
+                        <span>📄</span>
+                        <span>ส่งออก PDF</span>
+                    </button>
+                    <button onclick="exportToExcel()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-200 flex items-center space-x-2">
+                        <span>📊</span>
+                        <span>ส่งออก Excel</span>
+                    </button>
+                    <button onclick="printReport()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200 flex items-center space-x-2">
+                        <span>🖨️</span>
+                        <span>พิมพ์รายงาน</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize Charts
+        document.addEventListener('DOMContentLoaded', function() {
+            // Daily News Chart
+            const dailyNewsCtx = document.getElementById('dailyNewsChart');
+            if (dailyNewsCtx) {
+                const dailyNewsData = <?php echo json_encode($report_data['daily_news'] ?? []); ?>;
+                
+                if (dailyNewsData.length > 0) {
+                    new Chart(dailyNewsCtx, {
+                        type: 'line',
+                        data: {
+                            labels: dailyNewsData.map(item => {
+                                const date = new Date(item.date);
+                                return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+                            }),
+                            datasets: [{
+                                label: 'จำนวนข่าวสาร',
+                                data: dailyNewsData.map(item => item.count),
+                                borderColor: 'rgb(59, 130, 246)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                pointBackgroundColor: 'rgb(59, 130, 246)',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                pointRadius: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                    titleColor: '#fff',
+                                    bodyColor: '#fff',
+                                    borderColor: 'rgb(59, 130, 246)',
+                                    borderWidth: 1,
+                                    cornerRadius: 8
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)'
+                                    },
+                                    ticks: {
+                                        color: '#6b7280'
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        display: false
+                                    },
+                                    ticks: {
+                                        color: '#6b7280'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        // Export Functions
+        function exportToPDF() {
+            // Simple implementation - could be enhanced with a PDF library
+            window.print();
+        }
+
+        function exportToExcel() {
+            // Simple CSV export
+            const reportType = '<?php echo $report_type; ?>';
+            const startDate = '<?php echo $start_date; ?>';
+            const endDate = '<?php echo $end_date; ?>';
+            
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += `รายงาน${reportType},${startDate} ถึง ${endDate}\n`;
+            
+            // Add report data based on type
+            const reportData = <?php echo json_encode($report_data); ?>;
+            
+            if (reportType === 'overview') {
+                csvContent += "ประเภท,จำนวน\n";
+                csvContent += `ผู้ใช้ทั้งหมด,${reportData.total_users}\n`;
+                csvContent += `ข่าวสารทั้งหมด,${reportData.total_news}\n`;
+                csvContent += `ITA ทั้งหมด,${reportData.total_ita}\n`;
+            }
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `report_${reportType}_${startDate}_${endDate}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function printReport() {
+            window.print();
+        }
+
+        // Auto-refresh data every 5 minutes
+        setInterval(function() {
+            const currentUrl = new URL(window.location);
+            currentUrl.searchParams.set('refresh', Date.now());
+            
+            // Only refresh if user is still on the page
+            if (document.visibilityState === 'visible') {
+                fetch(currentUrl.toString())
+                    .then(response => response.text())
+                    .then(html => {
+                        // Update only the report content area
+                        const parser = new DOMParser();
+                        const newDoc = parser.parseFromString(html, 'text/html');
+                        const newContent = newDoc.querySelector('main');
+                        if (newContent) {
+                            console.log('รีเฟรชข้อมูลรายงานแล้ว');
+                        }
+                    })
+                    .catch(error => console.log('ไม่สามารถรีเฟรชข้อมูลได้:', error));
+            }
+        }, 300000); // 5 minutes
+
+        // Date validation
+        document.querySelector('input[name="start_date"]').addEventListener('change', function() {
+            const startDate = new Date(this.value);
+            const endDateInput = document.querySelector('input[name="end_date"]');
+            const endDate = new Date(endDateInput.value);
+            
+            if (startDate > endDate) {
+                endDateInput.value = this.value;
+            }
+        });
+
+        document.querySelector('input[name="end_date"]').addEventListener('change', function() {
+            const endDate = new Date(this.value);
+            const startDateInput = document.querySelector('input[name="start_date"]');
+            const startDate = new Date(startDateInput.value);
+            
+            if (endDate < startDate) {
+                startDateInput.value = this.value;
+            }
+        });
+
+        console.log('📊 Reports system loaded successfully!');
+    </script>
+</body>
+</html>
