@@ -1330,9 +1330,11 @@ function generateSlug($text) {
 
         // Character counter for title
         document.getElementById('modalNewsTitle').addEventListener('input', function() {
+            
             const maxLength = 200;
             const currentLength = this.value.length;
             const percentage = (currentLength / maxLength) * 100;
+            
             
             if (percentage > 80) {
                 this.style.borderColor = percentage > 100 ? '#ef4444' : '#f59e0b';
@@ -1340,6 +1342,7 @@ function generateSlug($text) {
                 this.style.borderColor = '#d1d5db';
             }
         });
+        
     </script>
     
 </body>

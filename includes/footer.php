@@ -80,7 +80,7 @@
                     <div class="mt-4 p-3 bg-gray-700 rounded-lg">
                         <h5 class="font-semibold text-sm mb-2">เวลาทำการ</h5>
                         <div class="text-xs space-y-1">
-                            <p class="text-gray-300">จันทร์ - ศุกร์: 08:00 - 16:30</p>
+                            <p class="text-gray-300">จันทร์ - ศุกร์: 08:00 - 16:00</p>
                             <p class="text-gray-300">เสาร์ - อาทิตย์: 08:00 - 12:00</p>
                             <p class="text-red-300">ฉุกเฉิน: 24 ชั่วโมง</p>
                         </div>
