@@ -12,52 +12,22 @@ $db = new Database();
 $conn = $db->getConnection();
 
 try {
-    // Count total patients with error handling
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM patients WHERE is_active = 1");
+    // Count total users with error handling
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE is_active = 1");
     $stmt->execute();
-    $total_patients = $stmt->fetch()['count'] ?? 0;
+    $total_users = $stmt->fetch()['count'] ?? 0;
 
-    // Count total visits this month
+    // Count total news this month
     $this_month = date('Y-m');
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM visits WHERE visit_date LIKE ?");
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM news WHERE created_at LIKE ?");
     $stmt->execute([$this_month . '%']);
-    $visits_month = $stmt->fetch()['count'] ?? 0;
-
-    // Count total departments
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM departments WHERE is_active = 1");
-    $stmt->execute();
-    $total_departments = $stmt->fetch()['count'] ?? 0;
-
-    // Recent visits with department info - with error handling
-    try {
-        $stmt = $conn->prepare("
-            SELECT v.*, d.name as department_name, p.first_name, p.last_name 
-            FROM visits v 
-            LEFT JOIN departments d ON v.department_id = d.id 
-            LEFT JOIN patients p ON v.patient_id = p.id
-            ORDER BY v.created_at DESC 
-            LIMIT 10
-        ");
-        $stmt->execute();
-        $recent_visits = $stmt->fetchAll();
-    } catch (Exception $e) {
-        $recent_visits = [];
-    }
+    $news_month = $stmt->fetch()['count'] ?? 0;
 
     // System statistics with individual error handling
     $stats = [
-        'total_users' => 0,
+        'total_users' => $total_users,
         'total_news' => 0
     ];
-
-    // Safe stat collection
-    try {
-        $stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE is_active = 1");
-        $stmt->execute();
-        $stats['total_users'] = $stmt->fetchColumn() ?? 0;
-    } catch (Exception $e) {
-        $stats['total_users'] = 0;
-    }
 
     try {
         $stmt = $conn->prepare("SELECT COUNT(*) FROM news");
@@ -83,12 +53,12 @@ try {
         $recent_news = [];
     }
 
-    // Get monthly statistics
+    // Get monthly statistics for news
     $monthly_stats = [];
     for ($i = 5; $i >= 0; $i--) {
         $month = date('Y-m', strtotime("-$i months"));
         try {
-            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM visits WHERE visit_date LIKE ?");
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM news WHERE created_at LIKE ?");
             $stmt->execute([$month . '%']);
             $count = $stmt->fetchColumn() ?? 0;
         } catch (Exception $e) {
@@ -98,7 +68,7 @@ try {
         $monthly_stats[] = [
             'month' => $month,
             'month_name' => date('M Y', strtotime($month . '-01')),
-            'visits' => $count
+            'news' => $count
         ];
     }
 
@@ -116,9 +86,9 @@ try {
     if (function_exists('logError')) {
         logError($e->getMessage(), __FILE__, __LINE__);
     }
-    $total_patients = $visits_month = $total_departments = $today_visits = $today_news = 0;
-    $recent_visits = $recent_news = $monthly_stats = [];
-    $stats = ['total_users' => 0, 'total_patients' => 0, 'total_doctors' => 0, 'total_visits' => 0, 'total_news' => 0];
+    $total_users = $news_month = $today_news = 0;
+    $recent_news = $monthly_stats = [];
+    $stats = ['total_users' => 0, 'total_news' => 0];
 }
 
 // Safe format functions
@@ -201,18 +171,6 @@ function safeFormatThaiDateTime($datetime) {
             50% { opacity: .5; }
         }
         
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-        
-        .status-active { background-color: #10b981; }
-        .status-pending { background-color: #f59e0b; }
-        .status-completed { background-color: #3b82f6; }
-        
         .card-hover {
             transition: all 0.3s ease;
         }
@@ -220,17 +178,6 @@ function safeFormatThaiDateTime($datetime) {
         .card-hover:hover {
             transform: translateY(-4px);
             box-shadow: 0 12px 24px rgba(0,0,0,0.15);
-        }
-        
-        .loading-skeleton {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-        }
-        
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
         }
     </style>
 </head>
@@ -323,10 +270,10 @@ function safeFormatThaiDateTime($datetime) {
                         <h3 class="text-2xl font-bold mb-4 text-purple-800">🌟 สถิติวันนี้</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="flex items-center bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-xl">
-                                <span class="text-4xl mr-4">🏥</span>
+                                <span class="text-4xl mr-4">👥</span>
                                 <div>
-                                    <div class="text-3xl font-bold text-blue-800"><?php echo number_format($today_visits); ?></div>
-                                    <div class="text-blue-600 text-sm">การรักษาวันนี้</div>
+                                    <div class="text-3xl font-bold text-blue-800"><?php echo number_format($stats['total_users']); ?></div>
+                                    <div class="text-blue-600 text-sm">ผู้ใช้ระบบ</div>
                                 </div>
                             </div>
                             <div class="flex items-center bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-xl">
@@ -343,7 +290,7 @@ function safeFormatThaiDateTime($datetime) {
             </div>
 
             <!-- Enhanced Statistics Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6 mb-8">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6 mb-8">
                 <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl shadow-xl p-4 lg:p-6 hover-lift fade-in card-hover">
                     <div class="flex items-center justify-between">
                         <div>
@@ -357,8 +304,6 @@ function safeFormatThaiDateTime($datetime) {
                     </div>
                 </div>
 
-                
-
                 <div class="bg-gradient-to-br from-teal-500 to-teal-600 text-white rounded-2xl shadow-xl p-4 lg:p-6 hover-lift fade-in card-hover">
                     <div class="flex items-center justify-between">
                         <div>
@@ -371,6 +316,19 @@ function safeFormatThaiDateTime($datetime) {
                         <div class="text-xs text-teal-200">เผยแพร่แล้ว: 95%</div>
                     </div>
                 </div>
+
+                <div class="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-2xl shadow-xl p-4 lg:p-6 hover-lift fade-in card-hover">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-2xl lg:text-3xl font-bold"><?php echo number_format($news_month); ?></div>
+                            <div class="text-green-100 text-sm">ข่าวเดือนนี้</div>
+                        </div>
+                        <div class="text-3xl lg:text-4xl opacity-80">📅</div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-green-400">
+                        <div class="text-xs text-green-200">เพิ่มขึ้น: 12%</div>
+                    </div>
+                </div>
             </div>
 
             <!-- Chart and Quick Actions Row -->
@@ -379,8 +337,8 @@ function safeFormatThaiDateTime($datetime) {
                 <div class="glass-card rounded-2xl shadow-xl p-6 fade-in hover-lift">
                     <div class="flex items-center justify-between mb-6">
                         <div>
-                            <h3 class="text-xl font-semibold text-gray-800">สถิติการรักษารายเดือน</h3>
-                            <p class="text-gray-600 text-sm">แสดงจำนวนการรักษาใน 6 เดือนที่ผ่านมา</p>
+                            <h3 class="text-xl font-semibold text-gray-800">สถิติข่าวสารรายเดือน</h3>
+                            <p class="text-gray-600 text-sm">แสดงจำนวนข่าวสารใน 6 เดือนที่ผ่านมา</p>
                         </div>
                         <div class="text-3xl">📈</div>
                     </div>
@@ -434,129 +392,58 @@ function safeFormatThaiDateTime($datetime) {
                 </div>
             </div>
 
-            <!-- Recent Activities Section -->
-            <div class="grid lg:grid-cols-2 gap-8 mb-8">
-                <!-- Recent Visits -->
-                <div class="glass-card rounded-2xl shadow-xl overflow-hidden fade-in hover-lift">
-                    <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h3 class="text-xl font-semibold text-gray-800">การรักษาล่าสุด</h3>
-                                <p class="text-gray-600 text-sm">รายการการรักษาที่เพิ่งเกิดขึ้น</p>
-                            </div>
-                            <a href="visits.php" class="text-blue-600 hover:text-blue-800 text-sm font-medium hover:bg-blue-100 px-3 py-1 rounded-lg transition duration-200">
-                                ดูทั้งหมด →
-                            </a>
+            <!-- Recent News Section -->
+            <div class="glass-card rounded-2xl shadow-xl overflow-hidden fade-in hover-lift mb-8">
+                <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-800">ข่าวสารล่าสุด</h3>
+                            <p class="text-gray-600 text-sm">ข่าวที่เผยแพร่ล่าสุด</p>
                         </div>
-                    </div>
-                    <div class="p-6 max-h-96 overflow-y-auto">
-                        <?php if (empty($recent_visits)): ?>
-                            <div class="text-center py-8">
-                                <div class="text-6xl mb-4">🏥</div>
-                                <p class="text-gray-500 text-lg font-medium">ไม่มีข้อมูลการรักษา</p>
-                                <p class="text-gray-400 text-sm">ข้อมูลจะแสดงที่นี่เมื่อมีการรักษาใหม่</p>
-                            </div>
-                        <?php else: ?>
-                            <div class="space-y-4">
-                                <?php foreach ($recent_visits as $visit): ?>
-                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-200 card-hover">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="w-12 h-12 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                                            <span class="text-white font-bold">
-                                                <?php 
-                                                $first_initial = mb_substr($visit['first_name'] ?? 'N', 0, 1);
-                                                $last_initial = mb_substr($visit['last_name'] ?? 'A', 0, 1);
-                                                echo $first_initial . $last_initial; 
-                                                ?>
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-medium text-gray-800">
-                                                <?php echo htmlspecialchars(($visit['first_name'] ?? '') . ' ' . ($visit['last_name'] ?? '')); ?>
-                                            </h4>
-                                            <p class="text-sm text-gray-600">
-                                                🏢 <?php echo htmlspecialchars($visit['department_name'] ?? 'ไม่ระบุแผนก'); ?>
-                                            </p>
-                                            <p class="text-xs text-gray-500">
-                                                📅 <?php echo safeFormatThaiDate($visit['visit_date'] ?? ''); ?>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <?php
-                                        $status_configs = [
-                                            'active' => ['name' => 'กำลังรักษา', 'color' => 'bg-blue-100 text-blue-800', 'indicator' => 'status-active'],
-                                            'completed' => ['name' => 'เสร็จสิ้น', 'color' => 'bg-green-100 text-green-800', 'indicator' => 'status-completed'],
-                                            'cancelled' => ['name' => 'ยกเลิก', 'color' => 'bg-red-100 text-red-800', 'indicator' => 'status-pending']
-                                        ];
-                                        $status = $visit['status'] ?? 'active';
-                                        $config = $status_configs[$status] ?? ['name' => $status, 'color' => 'bg-gray-100 text-gray-800', 'indicator' => 'status-pending'];
-                                        ?>
-                                        <span class="px-3 py-1 rounded-full text-xs font-medium <?php echo $config['color']; ?>">
-                                            <span class="status-indicator <?php echo $config['indicator']; ?>"></span>
-                                            <?php echo $config['name']; ?>
-                                        </span>
-                                    </div>
-                                </div>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
+                        <a href="news.php" class="text-green-600 hover:text-green-800 text-sm font-medium hover:bg-green-100 px-3 py-1 rounded-lg transition duration-200">
+                            ดูทั้งหมด →
+                        </a>
                     </div>
                 </div>
-
-                <!-- Recent News -->
-                <div class="glass-card rounded-2xl shadow-xl overflow-hidden fade-in hover-lift">
-                    <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-green-100">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h3 class="text-xl font-semibold text-gray-800">ข่าวสารล่าสุด</h3>
-                                <p class="text-gray-600 text-sm">ข่าวที่เผยแพร่ล่าสุด</p>
-                            </div>
-                            <a href="news.php" class="text-green-600 hover:text-green-800 text-sm font-medium hover:bg-green-100 px-3 py-1 rounded-lg transition duration-200">
-                                ดูทั้งหมด →
-                            </a>
+                <div class="p-6 max-h-96 overflow-y-auto">
+                    <?php if (empty($recent_news)): ?>
+                        <div class="text-center py-8">
+                            <div class="text-6xl mb-4">📰</div>
+                            <p class="text-gray-500 text-lg font-medium">ไม่มีข่าวสาร</p>
+                            <p class="text-gray-400 text-sm">ข่าวสารจะแสดงที่นี่เมื่อมีการเผยแพร่</p>
                         </div>
-                    </div>
-                    <div class="p-6 max-h-96 overflow-y-auto">
-                        <?php if (empty($recent_news)): ?>
-                            <div class="text-center py-8">
-                                <div class="text-6xl mb-4">📰</div>
-                                <p class="text-gray-500 text-lg font-medium">ไม่มีข่าวสาร</p>
-                                <p class="text-gray-400 text-sm">ข่าวสารจะแสดงที่นี่เมื่อมีการเผยแพร่</p>
-                            </div>
-                        <?php else: ?>
-                            <div class="space-y-4">
-                                <?php foreach ($recent_news as $news): ?>
-                                <div class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-200 card-hover">
-                                    <div class="flex items-start justify-between">
-                                        <div class="flex-1">
-                                            <h4 class="font-medium text-gray-800 mb-2">
-                                                <?php echo htmlspecialchars($news['title'] ?? ''); ?>
-                                                <?php if (($news['is_featured'] ?? 0) == 1): ?>
-                                                <span class="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">⭐ เด่น</span>
-                                                <?php endif; ?>
-                                                <?php if (($news['is_urgent'] ?? 0) == 1): ?>
-                                                <span class="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">🚨 ด่วน</span>
-                                                <?php endif; ?>
-                                            </h4>
-                                            <div class="flex items-center text-sm text-gray-500 space-x-4">
-                                                <span>👤 <?php echo htmlspecialchars(($news['first_name'] ?? '') . ' ' . ($news['last_name'] ?? '')); ?></span>
-                                                <span>📅 <?php echo safeFormatThaiDateTime($news['created_at'] ?? ''); ?></span>
-                                            </div>
+                    <?php else: ?>
+                        <div class="space-y-4">
+                            <?php foreach ($recent_news as $news): ?>
+                            <div class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-200 card-hover">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <h4 class="font-medium text-gray-800 mb-2">
+                                            <?php echo htmlspecialchars($news['title'] ?? ''); ?>
+                                            <?php if (($news['is_featured'] ?? 0) == 1): ?>
+                                            <span class="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">⭐ เด่น</span>
+                                            <?php endif; ?>
+                                            <?php if (($news['is_urgent'] ?? 0) == 1): ?>
+                                            <span class="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">🚨 ด่วน</span>
+                                            <?php endif; ?>
+                                        </h4>
+                                        <div class="flex items-center text-sm text-gray-500 space-x-4">
+                                            <span>👤 <?php echo htmlspecialchars(($news['first_name'] ?? '') . ' ' . ($news['last_name'] ?? '')); ?></span>
+                                            <span>📅 <?php echo safeFormatThaiDateTime($news['created_at'] ?? ''); ?></span>
                                         </div>
-                                        <?php if (!empty($news['slug'])): ?>
-                                        <a href="../news.php?slug=<?php echo urlencode($news['slug']); ?>" 
-                                           target="_blank" 
-                                           class="bg-green-100 text-green-600 hover:bg-green-200 px-3 py-1 rounded-lg transition duration-200 text-xs font-medium ml-4">
-                                            👁️ ดู
-                                        </a>
-                                        <?php endif; ?>
                                     </div>
+                                    <?php if (!empty($news['slug'])): ?>
+                                    <a href="../news.php?slug=<?php echo urlencode($news['slug']); ?>" 
+                                       target="_blank" 
+                                       class="bg-green-100 text-green-600 hover:bg-green-200 px-3 py-1 rounded-lg transition duration-200 text-xs font-medium ml-4">
+                                        👁️ ดู
+                                    </a>
+                                    <?php endif; ?>
                                 </div>
-                                <?php endforeach; ?>
                             </div>
-                        <?php endif; ?>
-                    </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -584,7 +471,7 @@ function safeFormatThaiDateTime($datetime) {
                         <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
                             <div class="flex items-center">
                                 <div class="w-3 h-3 bg-green-500 rounded-full mr-3 pulse-dot"></div>
-                                <span class="text-sm font-medium">ระบบผู้ป่วย</span>
+                                <span class="text-sm font-medium">ระบบข่าวสาร</span>
                             </div>
                             <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">ทำงานปกติ</span>
                         </div>
@@ -785,8 +672,8 @@ function safeFormatThaiDateTime($datetime) {
                         data: {
                             labels: monthlyData.map(item => item.month_name),
                             datasets: [{
-                                label: 'จำนวนการรักษา',
-                                data: monthlyData.map(item => item.visits),
+                                label: 'จำนวนข่าวสาร',
+                                data: monthlyData.map(item => item.news),
                                 borderColor: 'rgb(59, 130, 246)',
                                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                 borderWidth: 3,
@@ -816,7 +703,7 @@ function safeFormatThaiDateTime($datetime) {
                                     displayColors: false,
                                     callbacks: {
                                         label: function(context) {
-                                            return `การรักษา: ${context.parsed.y} ครั้ง`;
+                                            return `ข่าวสาร: ${context.parsed.y} รายการ`;
                                         }
                                     }
                                 }
