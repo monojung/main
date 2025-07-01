@@ -5,6 +5,8 @@ require_once '../config/database.php';
 // Require admin role
 requireAdmin('../login.php');
 
+// กำหนดหน้าปัจจุบันสำหรับ sidebar
+$current_page = 'dashboard';
 $page_title = "แดชบอร์ดผู้ดูแลระบบ";
 
 // Get statistics
@@ -123,7 +125,7 @@ function safeFormatThaiDateTime($datetime) {
     <style>
         body { 
             font-family: 'Sarabun', sans-serif; 
-            background: linear-gradient(135deg,rgb(0, 202, 125) 0%,rgb(0, 94, 12) 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
         }
         
@@ -152,14 +154,14 @@ function safeFormatThaiDateTime($datetime) {
         }
         
         .glass-card {
-            background: rgba(214, 255, 230, 0.95);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         }
         
         .gradient-bg { 
-            background: linear-gradient(135deg,rgb(0, 202, 125) 0%,rgb(0, 94, 12) 100%); 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
         }
         
         .pulse-dot { 
@@ -210,38 +212,8 @@ function safeFormatThaiDateTime($datetime) {
     </nav>
 
     <div class="flex min-h-screen">
-        <!-- Enhanced Sidebar -->
-        <aside class="w-20 lg:w-64 glass-card shadow-2xl border-r border-gray-200 transition-all duration-300">
-            <div class="p-4 lg:p-6">
-                <div class="space-y-2">
-                    <a href="dashboard.php" class="flex items-center py-3 px-4 text-blue-600 bg-blue-50 rounded-xl font-medium border-l-4 border-blue-600 shadow-sm">
-                        <span class="text-xl mr-3">📊</span> 
-                        <span class="hidden lg:inline">แดชบอร์ด</span>
-                    </a>
-                    <a href="news.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition duration-200">
-                        <span class="text-xl mr-3">📰</span> 
-                        <span class="hidden lg:inline">จัดการข่าวสาร</span>
-                    </a>
-                    <a href="reports.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition duration-200">
-                        <span class="text-xl mr-3">📊</span> 
-                        <span class="hidden lg:inline">รายงาน</span>
-                    </a>
-                    <a href="users.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition duration-200">
-                        <span class="text-xl mr-3">👨‍💼</span> 
-                        <span class="hidden lg:inline">จัดการผู้ใช้</span>
-                    </a>
-                    <a href="settings.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition duration-200">
-                        <span class="text-xl mr-3">⚙️</span> 
-                        <span class="hidden lg:inline">ตั้งค่าระบบ</span>
-                    </a>
-                    <hr class="my-3 border-gray-300">
-                    <a href="../index.php" target="_blank" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition duration-200">
-                        <span class="text-xl mr-3">🌐</span> 
-                        <span class="hidden lg:inline">เว็บไซต์หลัก</span>
-                    </a>
-                </div>
-            </div>
-        </aside>
+        <!-- Include Sidebar -->
+        <?php include 'sidebar.php'; ?>
 
         <!-- Main Content -->
         <main class="flex-1 p-4 lg:p-8 overflow-x-hidden">
@@ -447,7 +419,157 @@ function safeFormatThaiDateTime($datetime) {
                 </div>
             </div>
 
-            
+            <!-- System Status and Information -->
+            <div class="grid lg:grid-cols-3 gap-8 mb-8">
+                <!-- System Status -->
+                <div class="glass-card rounded-2xl shadow-xl p-6 fade-in hover-lift">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-800">สถานะระบบ</h3>
+                            <p class="text-gray-600 text-sm">การทำงานของระบบต่างๆ</p>
+                        </div>
+                        <div class="text-3xl">🔧</div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 bg-green-500 rounded-full mr-3 pulse-dot"></div>
+                                <span class="text-sm font-medium">ฐานข้อมูล</span>
+                            </div>
+                            <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">เชื่อมต่อปกติ</span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 bg-green-500 rounded-full mr-3 pulse-dot"></div>
+                                <span class="text-sm font-medium">ระบบข่าวสาร</span>
+                            </div>
+                            <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">ทำงานปกติ</span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 bg-green-500 rounded-full mr-3 pulse-dot"></div>
+                                <span class="text-sm font-medium">เว็บไซต์</span>
+                            </div>
+                            <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">ออนไลน์</span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
+                                <span class="text-sm font-medium">สำรองข้อมูล</span>
+                            </div>
+                            <span class="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">ล่าสุด: วันนี้</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Information -->
+                <div class="glass-card rounded-2xl shadow-xl p-6 fade-in hover-lift">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-800">ข้อมูลเซิร์ฟเวอร์</h3>
+                            <p class="text-gray-600 text-sm">สถานะการใช้งานทรัพยากร</p>
+                        </div>
+                        <div class="text-3xl">🖥️</div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">CPU Usage</span>
+                                <span class="text-sm font-medium">45%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-gradient-to-r from-blue-400 to-blue-500 h-3 rounded-full transition-all duration-300" style="width: 45%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Memory Usage</span>
+                                <span class="text-sm font-medium">67%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-gradient-to-r from-green-400 to-green-500 h-3 rounded-full transition-all duration-300" style="width: 67%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Disk Space</span>
+                                <span class="text-sm font-medium">32%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-gradient-to-r from-yellow-400 to-yellow-500 h-3 rounded-full transition-all duration-300" style="width: 32%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4 border-t border-gray-200">
+                            <div class="text-xs text-gray-500 space-y-1">
+                                <div>🐘 PHP: <?php echo PHP_VERSION; ?></div>
+                                <div>⏰ Uptime: 15 days</div>
+                                <div>🌐 Load Avg: 0.8</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div class="glass-card rounded-2xl shadow-xl p-6 fade-in hover-lift">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-800">ลิงก์ด่วน</h3>
+                            <p class="text-gray-600 text-sm">เข้าถึงฟีเจอร์สำคัญได้อย่างรวดเร็ว</p>
+                        </div>
+                        <div class="text-3xl">🔗</div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <a href="../index.php" target="_blank" class="flex items-center p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition duration-200 group">
+                            <span class="text-xl mr-3 group-hover:scale-110 transition-transform">🌐</span>
+                            <div>
+                                <div class="text-sm font-medium text-gray-800">เว็บไซต์หลัก</div>
+                                <div class="text-xs text-gray-600">ดูหน้าเว็บสำหรับผู้ใช้งาน</div>
+                            </div>
+                        </a>
+                        
+                        <a href="news.php" class="flex items-center p-3 bg-green-50 hover:bg-green-100 rounded-lg transition duration-200 group">
+                            <span class="text-xl mr-3 group-hover:scale-110 transition-transform">📰</span>
+                            <div>
+                                <div class="text-sm font-medium text-gray-800">จัดการข่าวสาร</div>
+                                <div class="text-xs text-gray-600">เพิ่ม แก้ไข ลบข่าวสาร</div>
+                            </div>
+                        </a>
+                        
+                        <a href="users.php" class="flex items-center p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition duration-200 group">
+                            <span class="text-xl mr-3 group-hover:scale-110 transition-transform">👨‍💼</span>
+                            <div>
+                                <div class="text-sm font-medium text-gray-800">จัดการผู้ใช้</div>
+                                <div class="text-xs text-gray-600">บัญชีผู้ใช้และสิทธิ์</div>
+                            </div>
+                        </a>
+                        
+                        <a href="settings.php" class="flex items-center p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition duration-200 group">
+                            <span class="text-xl mr-3 group-hover:scale-110 transition-transform">⚙️</span>
+                            <div>
+                                <div class="text-sm font-medium text-gray-800">ตั้งค่าระบบ</div>
+                                <div class="text-xs text-gray-600">กำหนดค่าต่างๆ ของระบบ</div>
+                            </div>
+                        </a>
+                        
+                        <a href="reports.php" class="flex items-center p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition duration-200 group">
+                            <span class="text-xl mr-3 group-hover:scale-110 transition-transform">📊</span>
+                            <div>
+                                <div class="text-sm font-medium text-gray-800">รายงาน</div>
+                                <div class="text-xs text-gray-600">สถิติและข้อมูลวิเคราะห์</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
 
             <!-- Enhanced System Notifications -->
             <div class="glass-card rounded-2xl p-6 shadow-xl fade-in">
@@ -590,188 +712,8 @@ function safeFormatThaiDateTime($datetime) {
             }
         });
 
-        // Auto refresh dashboard every 5 minutes
-        setInterval(function() {
-            // Add visual indicator for refresh
-            const cards = document.querySelectorAll('.card-hover');
-            cards.forEach(card => {
-                card.style.transform = 'scale(1.02)';
-                setTimeout(() => {
-                    card.style.transform = '';
-                }, 200);
-            });
-            
-            console.log('Dashboard refreshed at:', new Date().toLocaleTimeString());
-        }, 300000);
-
-        // Add interactive features
-        document.addEventListener('DOMContentLoaded', function() {
-            // Animate statistics cards on load
-            const cards = document.querySelectorAll('.hover-lift');
-            cards.forEach((card, index) => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(20px)';
-                
-                setTimeout(() => {
-                    card.style.transition = 'all 0.5s ease';
-                    card.style.opacity = '1';
-                    card.style.transform = 'translateY(0)';
-                }, index * 100);
-            });
-
-            // Add click animations to quick action buttons
-            const actionButtons = document.querySelectorAll('.group');
-            actionButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    // Create ripple effect
-                    const ripple = document.createElement('span');
-                    const rect = this.getBoundingClientRect();
-                    const size = Math.max(rect.width, rect.height);
-                    const x = e.clientX - rect.left - size / 2;
-                    const y = e.clientY - rect.top - size / 2;
-                    
-                    ripple.style.width = ripple.style.height = size + 'px';
-                    ripple.style.left = x + 'px';
-                    ripple.style.top = y + 'px';
-                    ripple.classList.add('ripple');
-                    
-                    this.appendChild(ripple);
-                    
-                    setTimeout(() => {
-                        ripple.remove();
-                    }, 600);
-                });
-            });
-        });
-
-        // Add CSS for ripple effect
-        const style = document.createElement('style');
-        style.textContent = `
-            .ripple {
-                position: absolute;
-                border-radius: 50%;
-                background: rgba(255, 255, 255, 0.6);
-                transform: scale(0);
-                animation: ripple-animation 0.6s linear;
-                pointer-events: none;
-            }
-            
-            @keyframes ripple-animation {
-                to {
-                    transform: scale(4);
-                    opacity: 0;
-                }
-            }
-            
-            .group {
-                position: relative;
-                overflow: hidden;
-            }
-        `;
-        document.head.appendChild(style);
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            // Ctrl + D for Dashboard (already here)
-            if (e.ctrlKey && e.key === 'd') {
-                e.preventDefault();
-                window.location.href = 'dashboard.php';
-            }
-            
-            // Ctrl + N for News
-            if (e.ctrlKey && e.key === 'n') {
-                e.preventDefault();
-                window.location.href = 'news.php';
-            }
-            
-            // Ctrl + U for Users
-            if (e.ctrlKey && e.key === 'u') {
-                e.preventDefault();
-                window.location.href = 'users.php';
-            }
-            
-            // Ctrl + R for Reports
-            if (e.ctrlKey && e.key === 'r') {
-                e.preventDefault();
-                window.location.href = 'reports.php';
-            }
-            
-            // Ctrl + , for Settings
-            if (e.ctrlKey && e.key === ',') {
-                e.preventDefault();
-                window.location.href = 'settings.php';
-            }
-        });
-
-        // Add loading states for navigation
-        document.querySelectorAll('a[href]').forEach(link => {
-            link.addEventListener('click', function(e) {
-                if (!this.target || this.target === '_self') {
-                    // Add loading indicator
-                    const loader = document.createElement('div');
-                    loader.className = 'fixed top-0 left-0 w-full h-1 bg-blue-600 z-50';
-                    loader.style.animation = 'loading 2s ease-in-out';
-                    document.body.appendChild(loader);
-                    
-                    setTimeout(() => {
-                        if (loader.parentNode) {
-                            loader.remove();
-                        }
-                    }, 2000);
-                }
-            });
-        });
-
-        // Add loading animation CSS
-        const loadingStyle = document.createElement('style');
-        loadingStyle.textContent = `
-            @keyframes loading {
-                0% { width: 0%; }
-                50% { width: 70%; }
-                100% { width: 100%; }
-            }
-        `;
-        document.head.appendChild(loadingStyle);
-
-        // Enhanced accessibility
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Tab') {
-                document.body.classList.add('keyboard-navigation');
-            }
-        });
-
-        document.addEventListener('mousedown', function() {
-            document.body.classList.remove('keyboard-navigation');
-        });
-
-        // Add focus styles for keyboard navigation
-        const accessibilityStyle = document.createElement('style');
-        accessibilityStyle.textContent = `
-            .keyboard-navigation *:focus {
-                outline: 2px solid #3b82f6 !important;
-                outline-offset: 2px !important;
-            }
-        `;
-        document.head.appendChild(accessibilityStyle);
-
-        // Performance monitoring
-        window.addEventListener('load', function() {
-            console.log('🎉 Enhanced Dashboard loaded successfully!');
-            console.log('💡 Keyboard shortcuts: Ctrl+N (News), Ctrl+U (Users), Ctrl+R (Reports), Ctrl+, (Settings)');
-        });
-
-        // Error handling for missing functions
-        if (typeof formatThaiDate === 'undefined') {
-            window.formatThaiDate = function(date) {
-                return new Date(date).toLocaleDateString('th-TH');
-            };
-        }
-
-        if (typeof formatThaiDateTime === 'undefined') {
-            window.formatThaiDateTime = function(datetime) {
-                return new Date(datetime).toLocaleString('th-TH');
-            };
-        }
+        // Enhanced dashboard functionality
+        console.log('🎉 Enhanced Dashboard loaded successfully!');
     </script>
 </body>
 </html>

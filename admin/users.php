@@ -25,7 +25,6 @@ if ($_POST) {
             $first_name = sanitizeInput($_POST['first_name'] ?? '');
             $last_name = sanitizeInput($_POST['last_name'] ?? '');
             $role = sanitizeInput($_POST['role'] ?? 'staff');
-            $department_id = $_POST['department_id'] ? (int)$_POST['department_id'] : null;
             $phone = sanitizeInput($_POST['phone'] ?? '');
             
             if (empty($username) || empty($email) || empty($password) || empty($first_name) || empty($last_name)) {
@@ -43,13 +42,13 @@ if ($_POST) {
                     
                     $stmt = $conn->prepare("
                         INSERT INTO users (username, email, password_hash, first_name, last_name, 
-                                         role, department_id, phone, is_active, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+                                         role, phone, is_active, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())
                     ");
                     
                     if ($stmt->execute(array(
                         $username, $email, $password_hash, $first_name, $last_name,
-                        $role, $department_id, $phone
+                        $role, $phone
                     ))) {
                         $user_id = $conn->lastInsertId();
                         logActivity($conn, $_SESSION['user_id'], 'user_created', 'users', $user_id, null, array(
@@ -69,7 +68,6 @@ if ($_POST) {
             $first_name = sanitizeInput($_POST['first_name'] ?? '');
             $last_name = sanitizeInput($_POST['last_name'] ?? '');
             $role = sanitizeInput($_POST['role'] ?? 'staff');
-            $department_id = $_POST['department_id'] ? (int)$_POST['department_id'] : null;
             $phone = sanitizeInput($_POST['phone'] ?? '');
             $password = $_POST['password'] ?? '';
             
@@ -90,9 +88,9 @@ if ($_POST) {
                     } else {
                         $update_fields = array(
                             "username = ?", "email = ?", "first_name = ?", "last_name = ?",
-                            "role = ?", "department_id = ?", "phone = ?", "updated_at = NOW()"
+                            "role = ?", "phone = ?", "updated_at = NOW()"
                         );
-                        $params = array($username, $email, $first_name, $last_name, $role, $department_id, $phone);
+                        $params = array($username, $email, $first_name, $last_name, $role, $phone);
                         
                         // Update password if provided
                         if (!empty($password)) {
@@ -194,7 +192,6 @@ if ($_POST) {
 // Get filter parameters
 $role_filter = $_GET['role'] ?? '';
 $status_filter = $_GET['status'] ?? '';
-$department_filter = $_GET['department'] ?? '';
 $search = $_GET['search'] ?? '';
 $page = (int)($_GET['page'] ?? 1);
 $per_page = 20;
@@ -218,11 +215,6 @@ try {
         $params[] = ($status_filter === 'active') ? 1 : 0;
     }
     
-    if (!empty($department_filter)) {
-        $where_conditions[] = "u.department_id = ?";
-        $params[] = $department_filter;
-    }
-    
     if (!empty($search)) {
         $where_conditions[] = "(u.username LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)";
         $search_term = '%' . $search . '%';
@@ -238,7 +230,6 @@ try {
     $count_sql = "
         SELECT COUNT(*) as total 
         FROM users u 
-        LEFT JOIN departments d ON u.department_id = d.id 
         WHERE $where_clause
     ";
     $stmt = $conn->prepare($count_sql);
@@ -251,9 +242,8 @@ try {
     $list_params[] = $offset;
     
     $users_sql = "
-        SELECT u.*, d.name as department_name
+        SELECT u.*
         FROM users u 
-        LEFT JOIN departments d ON u.department_id = d.id
         WHERE $where_clause
         ORDER BY u.created_at DESC
         LIMIT ? OFFSET ?
@@ -261,11 +251,6 @@ try {
     $stmt = $conn->prepare($users_sql);
     $stmt->execute($list_params);
     $users = $stmt->fetchAll();
-    
-    // Get departments for dropdown
-    $stmt = $conn->prepare("SELECT id, name FROM departments WHERE is_active = 1 ORDER BY name");
-    $stmt->execute();
-    $departments = $stmt->fetchAll();
     
     // Get statistics
     $stats_sql = "
@@ -287,7 +272,6 @@ try {
     $error = "เกิดข้อผิดพลาดในการโหลดข้อมูล";
     logError($e->getMessage(), __FILE__, __LINE__);
     $users = array();
-    $departments = array();
     $stats = array('total' => 0, 'admin_count' => 0, 'doctor_count' => 0, 'nurse_count' => 0, 'staff_count' => 0, 'active_count' => 0, 'inactive_count' => 0);
     $total_users = 0;
 }
@@ -523,12 +507,6 @@ $total_pages = ceil($total_users / $per_page);
                                 </th>
                                 <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     <div class="flex items-center space-x-1">
-                                        <span>🏢</span>
-                                        <span>แผนก</span>
-                                    </div>
-                                </th>
-                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="flex items-center space-x-1">
                                         <span>📊</span>
                                         <span>สถานะ</span>
                                     </div>
@@ -550,7 +528,7 @@ $total_pages = ceil($total_users / $per_page);
                         <tbody class="bg-white divide-y divide-gray-200">
                             <?php if (empty($users)): ?>
                             <tr>
-                                <td colspan="6" class="px-6 py-16 text-center text-gray-500">
+                                <td colspan="5" class="px-6 py-16 text-center text-gray-500">
                                     <div class="text-6xl mb-4">👨‍💼</div>
                                     <div class="text-xl font-semibold mb-2">ไม่พบข้อมูลผู้ใช้</div>
                                     <div class="text-gray-400">ลองปรับเปลี่ยนคำค้นหาหรือเพิ่มผู้ใช้ใหม่</div>
@@ -596,18 +574,6 @@ $total_pages = ceil($total_users / $per_page);
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">
-                                        <?php if ($user['department_name']): ?>
-                                        <span class="flex items-center">
-                                            <span class="text-lg mr-1">🏢</span>
-                                            <?php echo htmlspecialchars($user['department_name']); ?>
-                                        </span>
-                                        <?php else: ?>
-                                        <span class="text-gray-400 italic">ไม่ระบุแผนก</span>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="space-y-1">
                                         <?php if ($user['is_active']): ?>
                                         <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
@@ -617,12 +583,6 @@ $total_pages = ceil($total_users / $per_page);
                                         <span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
                                             ❌ ปิดใช้งาน
                                         </span>
-                                        <?php endif; ?>
-                                        
-                                        <?php if ($user['locked_until'] && strtotime($user['locked_until']) > time()): ?>
-                                        <div class="text-xs text-red-600">
-                                            🔒 ล็อคชั่วคราว
-                                        </div>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -684,7 +644,6 @@ $total_pages = ceil($total_users / $per_page);
                         <div>
                             <p class="text-sm text-gray-700">
                                 แสดง <span class="font-medium"><?php echo number_format($offset + 1); ?></span> ถึง 
-                                <span class="font-medium"><?php echo number_format(min($offset + $per_page, $total_users)); ?></span> จาก 
                                 <span class="font-medium"><?php echo number_format($total_users); ?></span> รายการ
                             </p>
                         </div>
@@ -822,40 +781,23 @@ $total_pages = ceil($total_users / $per_page);
                             </div>
                         </div>
                         
-                        <!-- Role and Department -->
+                        <!-- Role -->
                         <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
                             <div class="flex items-center mb-3">
                                 <span class="text-2xl mr-2">🎭</span>
-                                <h4 class="text-lg font-semibold text-purple-800">บทบาทและแผนก</h4>
+                                <h4 class="text-lg font-semibold text-purple-800">บทบาท</h4>
                             </div>
-                            <div class="grid md:grid-cols-2 gap-4">
-                                <div class="space-y-2">
-                                    <label for="modalRole" class="flex items-center text-sm font-medium text-gray-700">
-                                        <span class="text-lg mr-1">🎭</span> บทบาท <span class="text-red-500 ml-1">*</span>
-                                    </label>
-                                    <select name="role" id="modalRole" required 
-                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                        <option value="staff">👨‍💼 เจ้าหน้าที่</option>
-                                        <option value="nurse">👩‍⚕️ พยาบาล</option>
-                                        <option value="doctor">👨‍⚕️ แพทย์</option>
-                                        <option value="admin">👑 ผู้ดูแลระบบ</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="space-y-2">
-                                    <label for="modalDepartment" class="flex items-center text-sm font-medium text-gray-700">
-                                        <span class="text-lg mr-1">🏢</span> แผนก
-                                    </label>
-                                    <select name="department_id" id="modalDepartment" 
-                                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                        <option value="">ไม่ระบุแผนก</option>
-                                        <?php foreach ($departments as $dept): ?>
-                                        <option value="<?php echo $dept['id']; ?>">
-                                            <?php echo htmlspecialchars($dept['name']); ?>
-                                        </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
+                            <div class="space-y-2">
+                                <label for="modalRole" class="flex items-center text-sm font-medium text-gray-700">
+                                    <span class="text-lg mr-1">🎭</span> บทบาท <span class="text-red-500 ml-1">*</span>
+                                </label>
+                                <select name="role" id="modalRole" required 
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="staff">👨‍💼 เจ้าหน้าที่</option>
+                                    <option value="nurse">👩‍⚕️ พยาบาล</option>
+                                    <option value="doctor">👨‍⚕️ แพทย์</option>
+                                    <option value="admin">👑 ผู้ดูแลระบบ</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -905,7 +847,6 @@ $total_pages = ceil($total_users / $per_page);
             document.getElementById('modalEmail').value = user.email;
             document.getElementById('modalPassword').value = '';
             document.getElementById('modalRole').value = user.role;
-            document.getElementById('modalDepartment').value = user.department_id || '';
             document.getElementById('modalPhone').value = user.phone || '';
             document.getElementById('modalPassword').required = false;
             document.getElementById('passwordRequired').textContent = '';
@@ -1128,17 +1069,6 @@ $total_pages = ceil($total_users / $per_page);
             }
         });
 
-        // Enhanced visual feedback for form interactions
-        document.querySelectorAll('input, select, textarea').forEach(field => {
-            field.addEventListener('focus', function() {
-                this.parentElement.classList.add('ring-2', 'ring-blue-200');
-            });
-            
-            field.addEventListener('blur', function() {
-                this.parentElement.classList.remove('ring-2', 'ring-blue-200');
-            });
-        });
-
         // Auto-hide messages with fade effect
         setTimeout(function() {
             const messages = document.querySelectorAll('.bg-green-50, .bg-red-50');
@@ -1151,51 +1081,6 @@ $total_pages = ceil($total_users / $per_page);
                 }, 500);
             });
         }, 5000);
-
-        // Role-based department suggestions
-        document.getElementById('modalRole').addEventListener('change', function() {
-            const role = this.value;
-            const departmentSelect = document.getElementById('modalDepartment');
-            
-            // Highlight relevant departments based on role
-            Array.from(departmentSelect.options).forEach(option => {
-                option.style.backgroundColor = '';
-                option.style.fontWeight = '';
-                
-                if (role === 'doctor' && option.text.includes('แพทย์')) {
-                    option.style.backgroundColor = '#dcfce7';
-                    option.style.fontWeight = 'bold';
-                } else if (role === 'nurse' && option.text.includes('พยาบาล')) {
-                    option.style.backgroundColor = '#e0e7ff';
-                    option.style.fontWeight = 'bold';
-                }
-            });
-        });
-
-        // Search enhancement with debounce
-        let searchTimeout;
-        const searchInput = document.querySelector('input[name="search"]');
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    // Add visual feedback for search
-                    this.style.borderColor = '#3b82f6';
-                    setTimeout(() => {
-                        this.style.borderColor = '';
-                    }, 1000);
-                }, 300);
-            });
-        }
-
-        // Initialize tooltips and help text
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add title attributes for better UX
-            document.getElementById('modalUsername').title = 'ชื่อผู้ใช้สำหรับเข้าสู่ระบบ (a-z, A-Z, 0-9, _ เท่านั้น)';
-            document.getElementById('modalPassword').title = 'รหัสผ่านสำหรับเข้าสู่ระบบ (อย่างน้อย 6 ตัวอักษร)';
-            document.getElementById('modalRole').title = 'บทบาทกำหนดสิทธิ์การเข้าถึงระบบ';
-            document.getElementById('modalDepartment').title = 'แผนกที่ผู้ใช้สังกัด (ไม่บังคับ)';
-        });
 
         // Add loading state to form submission
         document.getElementById('userForm').addEventListener('submit', function() {
@@ -1218,4 +1103,6 @@ $total_pages = ceil($total_users / $per_page);
         console.log('🎉 Enhanced Users Management UI loaded successfully!');
     </script>
 </body>
-</html>
+</html>><?php echo number_format(min($offset + $per_page, $total_users)); ?></span> จาก 
+                                <span class="font-medium"><?php echo number_format($total_users); ?></span> รายการ
+                            </p>    
