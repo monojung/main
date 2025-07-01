@@ -1,282 +1,960 @@
-<?php
+<a href="?action=add" class="bg-white text-indigo-600 hover:bg-indigo-50 px-6 py-3 rounded-xl transition duration-300 shadow-lg font-medium flex items-center space-x-2">
+                        <span class="text-lg">👤</span>
+                        <span>เพิ่มผู้ใช้ใหม่</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6 mb-8">
+                <div class="glass-card rounded-2xl p-4 lg:p-6 hover-lift fade-in">
+                    <div class="text-center">
+                        <div class="text-2xl lg:text-3xl font-bold text-blue-600"><?php echo number_format($stats['total']); ?></div>
+                        <div class="text-sm text-gray-600">ทั้งหมด</div>
+                    </div>
+                </div>
+                
+                <div class="glass-card rounded-2xl p-4 lg:p-6 hover-lift fade-in">
+                    <div class="text-center">
+                        <div class="text-2xl lg:text-3xl font-bold text-green-600"><?php echo number_format($stats['active']); ?></div>
+                        <div class="text-sm text-gray-600">ใช้งานได้</div>
+                    </div>
+                </div>
+                
+                <div class="glass-card rounded-2xl p-4 lg:p-6 hover-lift fade-in">
+                    <div class="text-center">
+                        <div class="text-2xl lg:text-3xl font-bold text-red-600"><?php echo number_format($stats['inactive']); ?></div>
+                        <div class="text-sm text-gray-600">ปิดใช้งาน</div>
+                    </div>
+                </div>
+                
+                <div class="glass-card rounded-2xl p-4 lg:p-6 hover-lift fade-in">
+                    <div class="text-center">
+                        <div class="text-2xl lg:text-3xl font-bold text-purple-600"><?php echo number_format($stats['admins']); ?></div>
+                        <div class="text-sm text-gray-600">ผู้ดูแลระบบ</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter and Search -->
+            <div class="glass-card rounded-2xl p-6 mb-8 fade-in">
+                <form method="GET" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">🔍 ค้นหา</label>
+                        <input type="text" name="search" value="<?php echo htmlspecialchars($search); ?>" 
+                               placeholder="ชื่อ, นามสกุล, ชื่อผู้ใช้..." 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">👤 บทบาท</label>
+                        <select name="role" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">ทั้งหมด</option>
+                            <option value="admin" <?php echo $role_filter === 'admin' ? 'selected' : ''; ?>>ผู้ดูแลระบบ</option>
+                            <option value="editor" <?php echo $role_filter === 'editor' ? 'selected' : ''; ?>>บรรณาธิการ</option>
+                            <option value="user" <?php echo $role_filter === 'user' ? 'selected' : ''; ?>>ผู้ใช้ทั่วไป</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">📊 สถานะ</label>
+                        <select name="status" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">ทั้งหมด</option>
+                            <option value="1" <?php echo $status_filter === '1' ? 'selected' : ''; ?>>ใช้งานได้</option>
+                            <option value="0" <?php echo $status_filter === '0' ? 'selected' : ''; ?>>ปิดใช้งาน</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">🏢 แผนก</label>
+                        <select name="department" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">ทั้งหมด</option>
+                            <?php foreach ($departments as $dept): ?>
+                            <option value="<?php echo $dept['id']; ?>" <?php echo $department_filter == $dept['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($dept['name']); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">&nbsp;</label>
+                        <button type="submit" class="w-full bg-indigo-600 text-white py-3 px-6 rounded-xl hover:bg-indigo-700 transition duration-300 font-medium">
+                            🔍 ค้นหา
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Users Table -->
+            <div class="glass-card rounded-2xl overflow-hidden shadow-xl fade-in">
+                <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-semibold text-gray-800">📋 รายการผู้ใช้งาน</h3>
+                        <div class="text-sm text-gray-600">
+                            แสดง <?php echo number_format(count($users_list)); ?> จาก <?php echo number_format($total_records); ?> รายการ
+                        </div>
+                    </div>
+                </div>
+
+                <?php if (empty($users_list)): ?>
+                <div class="p-12 text-center">
+                    <div class="text-6xl mb-4">👥</div>
+                    <p class="text-gray-500 text-lg font-medium">ไม่มีผู้ใช้งาน</p>
+                    <p class="text-gray-400 text-sm mb-6">เริ่มต้นโดยการเพิ่มผู้ใช้ใหม่</p>
+                    <a href="?action=add" class="bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 transition duration-300 inline-flex items-center space-x-2">
+                        <span>👤</span>
+                        <span>เพิ่มผู้ใช้ใหม่</span>
+                    </a>
+                </div>
+                <?php else: ?>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ผู้ใช้</th>
+                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">บทบาท</th>
+                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">แผนก</th>
+                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">เข้าสู่ระบบล่าสุด</th>
+                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">การดำเนินการ</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <?php foreach ($users_list as $user): ?>
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                                            <span class="text-white font-semibold text-lg">
+                                                <?php echo strtoupper(substr($user['first_name'], 0, 1)); ?>
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-gray-900">
+                                                <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>
+                                                <?php if ($user['id'] == $_SESSION['user_id']): ?>
+                                                <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">คุณ</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="text-sm text-gray-500">
+                                                @<?php echo htmlspecialchars($user['username']); ?>
+                                            </div>
+                                            <div class="text-sm text-gray-400">
+                                                <?php echo htmlspecialchars($user['email']); ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <?php
+                                    $role_colors = [
+                                        'admin' => 'bg-red-100 text-red-800',
+                                        'editor' => 'bg-blue-100 text-blue-800',
+                                        'user' => 'bg-gray-100 text-gray-800'
+                                    ];
+                                    $role_labels = [
+                                        'admin' => '👑 ผู้ดูแลระบบ',
+                                        'editor' => '✏️ บรรณาธิการ',
+                                        'user' => '👤 ผู้ใช้ทั่วไป'
+                                    ];
+                                    ?>
+                                    <span class="px-3 py-1 text-xs font-semibold rounded-full <?php echo $role_colors[$user['role']] ?? 'bg-gray-100 text-gray-800'; ?>">
+                                        <?php echo $role_labels[$user['role']] ?? $user['role']; ?>
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-500">
+                                    <?php echo htmlspecialchars($user['department_name'] ?? 'ไม่ระบุ'); ?>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <?php if ($user['is_active']): ?>
+                                    <span class="flex items-center text-green-600">
+                                        <div class="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                                        ใช้งานได้
+                                    </span>
+                                    <?php else: ?>
+                                    <span class="flex items-center text-red-600">
+                                        <div class="w-2 h-2 bg-red-400 rounded-full mr-2"></div>
+                                        ปิดใช้งาน
+                                    </span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-500">
+                                    <?php echo $user['last_login'] ? safeFormatThaiDateTime($user['last_login']) : 'ยังไม่เคยเข้าสู่ระบบ'; ?>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex space-x-2">
+                                        <a href="?action=edit&id=<?php echo $user['id']; ?>" 
+                                           class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1 rounded-lg transition duration-200 text-xs">
+                                            ✏️ แก้ไข
+                                        </a>
+                                        
+                                        <?php if ($user['id'] != $_SESSION['user_id']): ?>
+                                        <button onclick="toggleStatus(<?php echo $user['id']; ?>, <?php echo $user['is_active'] ? 0 : 1; ?>)"
+                                                class="bg-<?php echo $user['is_active'] ? 'yellow' : 'green'; ?>-100 text-<?php echo $user['is_active'] ? 'yellow' : 'green'; ?>-600 hover:bg-<?php echo $user['is_active'] ? 'yellow' : 'green'; ?>-200 px-3 py-1 rounded-lg transition duration-200 text-xs">
+                                            <?php echo $user['is_active'] ? '⏸️ ปิดใช้งาน' : '▶️ เปิดใช้งาน'; ?>
+                                        </button>
+                                        
+                                        <button onclick="confirmDelete(<?php echo $user['id']; ?>)"
+                                                class="bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1 rounded-lg transition duration-200 text-xs">
+                                            🗑️ ลบ
+                                        </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <?php if ($pagination['total_pages'] > 1): ?>
+                <div class="p-6 border-t border-gray-200 bg-gray-50">
+                    <div class="flex justify-between items-center">
+                        <div class="text-sm text-gray-700">
+                            แสดงรายการ <?php echo number_format(($page - 1) * $per_page + 1); ?> - <?php echo number_format(min($page * $per_page, $total_records)); ?> 
+                            จากทั้งหมด <?php echo number_format($total_records); ?> รายการ
+                        </div>
+                        <div class="flex space-x-2">
+                            <?php if ($pagination['has_prev']): ?>
+                            <a href="?page=<?php echo $pagination['prev_page']; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
+                               class="bg-white border border-gray-300 text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg transition duration-200">
+                                ← ก่อนหน้า
+                            </a>
+                            <?php endif; ?>
+                            
+                            <?php for ($i = max(1, $page - 2); $i <= min($pagination['total_pages'], $page + 2); $i++): ?>
+                            <a href="?page=<?php echo $i; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
+                               class="<?php echo $i === $page ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300 text-gray-500 hover:text-gray-700'; ?> px-4 py-2 rounded-lg transition duration-200">
+                                <?php echo $i; ?>
+                            </a>
+                            <?php endfor; ?>
+                            
+                            <?php if ($pagination['has_next']): ?>
+                            <a href="?page=<?php echo $pagination['next_page']; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
+                               class="bg-white border border-gray-300 text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg transition duration-200">
+                                ถัดไป →
+                            </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <?php endif; ?>
+            </div>
+
+            <?php else: ?>
+            <!-- Add/Edit Form -->
+            <div class="mb-8 fade-in">
+                <div class="flex items-center space-x-4 mb-4">
+                    <a href="users.php" class="text-white hover:text-gray-200 transition duration-200">
+                        <span class="text-2xl">←</span>
+                    </a>
+                    <div>
+                        <h2 class="text-3xl lg:text-4xl font-bold text-white">
+                            <?php echo $action === 'add' ? '👤 เพิ่มผู้ใช้ใหม่' : '✏️ แก้ไขข้อมูลผู้ใช้'; ?>
+                        </h2>
+                        <p class="text-gray-200">
+                            <?php echo $action === 'add' ? 'สร้างบัญชีผู้ใช้ใหม่และกำหนดสิทธิ์' : 'แก้ไขข้อมูลและสิทธิ์ผู้ใช้'; ?>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-8 fade-in">
+                <form method="POST" class="space-y-6">
+                    <input type="hidden" name="action" value="<?php echo $action; ?>">
+                    <?php if ($edit_user): ?>
+                    <input type="hidden" name="user_id" value="<?php echo $edit_user['id']; ?>">
+                    <?php endif; ?>
+                    
+                    <!-- Personal Information -->
+                    <div class="bg-gray-50 p-6 rounded-xl">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4">👑 บทบาทและสิทธิ์</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">บทบาท</label>
+                                <select name="role" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="user" <?php echo ($edit_user['role'] ?? 'user') === 'user' ? 'selected' : ''; ?>>ผู้ใช้ทั่วไป</option>
+                                    <option value="editor" <?php echo ($edit_user['role'] ?? '') === 'editor' ? 'selected' : ''; ?>>บรรณาธิการ</option>
+                                    <option value="admin" <?php echo ($edit_user['role'] ?? '') === 'admin' ? 'selected' : ''; ?>>ผู้ดูแลระบบ</option>
+                                </select>
+                                <p class="text-sm text-gray-500 mt-2">
+                                    ผู้ใช้ทั่วไป: ดูข้อมูล | บรรณาธิการ: จัดการข่าว | ผู้ดูแลระบบ: ทุกสิทธิ์
+                                </p>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">สถานะการใช้งาน</label>
+                                <div class="flex items-center space-x-4">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" name="is_active" value="1" 
+                                               <?php echo ($edit_user['is_active'] ?? 1) ? 'checked' : ''; ?>
+                                               class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                        <span class="ml-3 text-sm font-medium text-gray-700">เปิดใช้งาน</span>
+                                    </label>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">
+                                    ผู้ใช้ที่ปิดใช้งานจะไม่สามารถเข้าสู่ระบบได้
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                        <a href="users.php" 
+                           class="bg-gray-100 text-gray-700 hover:bg-gray-200 px-6 py-3 rounded-xl transition duration-300 font-medium">
+                            ยกเลิก
+                        </a>
+                        <button type="submit" 
+                                class="bg-indigo-600 text-white hover:bg-indigo-700 px-6 py-3 rounded-xl transition duration-300 font-medium flex items-center space-x-2">
+                            <span><?php echo $action === 'add' ? '👤' : '💾'; ?></span>
+                            <span><?php echo $action === 'add' ? 'เพิ่มผู้ใช้' : 'บันทึกการแก้ไข'; ?></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <?php endif; ?>
+        </main>
+    </div>
+
+    <script>
+        // Status toggle function
+        function toggleStatus(userId, newStatus) {
+            const statusText = newStatus ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
+            if (confirm(`คุณต้องการ${statusText}ผู้ใช้นี้หรือไม่?`)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="toggle_status">
+                    <input type="hidden" name="user_id" value="${userId}">
+                    <input type="hidden" name="new_status" value="${newStatus}">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        // Delete confirmation
+        function confirmDelete(userId) {
+            if (confirm('คุณต้องการลบผู้ใช้นี้หรือไม่? การดำเนินการนี้ไม่สามารถย้อนกลับได้')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="user_id" value="${userId}">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        // Form validation
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form[method="POST"]');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const firstName = document.querySelector('input[name="first_name"]').value.trim();
+                    const lastName = document.querySelector('input[name="last_name"]').value.trim();
+                    const username = document.querySelector('input[name="username"]').value.trim();
+                    const email = document.querySelector('input[name="email"]').value.trim();
+                    
+                    if (!firstName || !lastName || !username || !email) {
+                        e.preventDefault();
+                        alert('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
+                        return false;
+                    }
+                    
+                    // Email validation
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(email)) {
+                        e.preventDefault();
+                        alert('กรุณากรอกอีเมลที่ถูกต้อง');
+                        return false;
+                    }
+                    
+                    // Password validation for add action
+                    const action = document.querySelector('input[name="action"]').value;
+                    if (action === 'add') {
+                        const password = document.querySelector('input[name="password"]').value;
+                        const confirmPassword = document.querySelector('input[name="confirm_password"]').value;
+                        
+                        if (!password) {
+                            e.preventDefault();
+                            alert('กรุณากรอกรหัสผ่าน');
+                            return false;
+                        }
+                        
+                        if (password.length < 6) {
+                            e.preventDefault();
+                            alert('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
+                            return false;
+                        }
+                        
+                        if (password !== confirmPassword) {
+                            e.preventDefault();
+                            alert('รหัสผ่านไม่ตรงกัน');
+                            return false;
+                        }
+                    } else if (action === 'edit') {
+                        const newPassword = document.querySelector('input[name="new_password"]').value;
+                        const confirmPassword = document.querySelector('input[name="confirm_password"]').value;
+                        
+                        if (newPassword) {
+                            if (newPassword.length < 6) {
+                                e.preventDefault();
+                                alert('รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
+                                return false;
+                            }
+                            
+                            if (newPassword !== confirmPassword) {
+                                e.preventDefault();
+                                alert('รหัสผ่านใหม่ไม่ตรงกัน');
+                                return false;
+                            }
+                        }
+                    }
+                    
+                    // Show loading state
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<span class="animate-spin mr-2">⏳</span>กำลังบันทึก...';
+                    submitBtn.disabled = true;
+                    
+                    // Re-enable after 10 seconds as fallback
+                    setTimeout(() => {
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+                    }, 10000);
+                });
+            }
+        });
+
+        // Username validation (real-time)
+        document.querySelector('input[name="username"]').addEventListener('input', function(e) {
+            const username = e.target.value;
+            const regex = /^[a-zA-Z0-9_-]+$/;
+            
+            if (username && !regex.test(username)) {
+                e.target.setCustomValidity('ชื่อผู้ใช้สามารถใช้ได้เฉพาะตัวอักษร ตัวเลข _ และ - เท่านั้น');
+            } else {
+                e.target.setCustomValidity('');
+            }
+        });
+
+        // Phone number formatting
+        document.querySelector('input[name="phone"]').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 0) {
+                if (value.length <= 3) {
+                    value = value;
+                } else if (value.length <= 6) {
+                    value = value.substring(0, 3) + '-' + value.substring(3);
+                } else if (value.length <= 10) {
+                    value = value.substring(0, 3) + '-' + value.substring(3, 6) + '-' + value.substring(6);
+                } else {
+                    value = value.substring(0, 3) + '-' + value.substring(3, 6) + '-' + value.substring(6, 10);
+                }
+            }
+            e.target.value = value;
+        });
+
+        // Role description update
+        document.querySelector('select[name="role"]').addEventListener('change', function(e) {
+            const role = e.target.value;
+            const descriptions = {
+                'user': 'ผู้ใช้ทั่วไป: สามารถดูข้อมูลและใช้งานฟีเจอร์พื้นฐาน',
+                'editor': 'บรรณาธิการ: สามารถจัดการข่าวสาร เพิ่ม แก้ไข และลบข่าว',
+                'admin': 'ผู้ดูแลระบบ: มีสิทธิ์เต็มในการจัดการระบบทั้งหมด'
+            };
+            
+            const description = e.target.parentNode.querySelector('p');
+            if (description) {
+                description.textContent = descriptions[role] || '';
+            }
+        });
+
+        // Password strength indicator
+        function checkPasswordStrength(password) {
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (/[a-z]/.test(password)) strength++;
+            if (/[A-Z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^A-Za-z0-9]/.test(password)) strength++;
+            
+            return strength;
+        }
+
+        const passwordFields = document.querySelectorAll('input[type="password"]');
+        passwordFields.forEach(field => {
+            field.addEventListener('input', function(e) {
+                if (e.target.name.includes('password') && !e.target.name.includes('confirm')) {
+                    const strength = checkPasswordStrength(e.target.value);
+                    const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'];
+                    const labels = ['อ่อนมาก', 'อ่อน', 'ปานกลาง', 'แข็งแกร่ง', 'แข็งแกร่งมาก'];
+                    
+                    let indicator = e.target.parentNode.querySelector('.password-strength');
+                    if (!indicator && e.target.value) {
+                        indicator = document.createElement('div');
+                        indicator.className = 'password-strength mt-2';
+                        e.target.parentNode.appendChild(indicator);
+                    }
+                    
+                    if (indicator) {
+                        if (e.target.value) {
+                            indicator.innerHTML = `
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="${colors[strength]} h-2 rounded-full transition-all duration-300" style="width: ${(strength + 1) * 20}%"></div>
+                                </div>
+                                <p class="text-xs text-gray-600 mt-1">ความแข็งแกร่งรหัสผ่าน: ${labels[strength]}</p>
+                            `;
+                        } else {
+                            indicator.remove();
+                        }
+                    }
+                }
+            });
+        });
+
+        console.log('👥 User management system loaded successfully!');
+    </script>
+</body>
+</html>-lg font-semibold text-gray-800 mb-4">👤 ข้อมูลส่วนตัว</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อ *</label>
+                                <input type="text" name="first_name" required 
+                                       value="<?php echo htmlspecialchars($edit_user['first_name'] ?? ''); ?>"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                       placeholder="กรอกชื่อ">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">นามสกุล *</label>
+                                <input type="text" name="last_name" required 
+                                       value="<?php echo htmlspecialchars($edit_user['last_name'] ?? ''); ?>"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                       placeholder="กรอกนามสกุล">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">อีเมล *</label>
+                                <input type="email" name="email" required 
+                                       value="<?php echo htmlspecialchars($edit_user['email'] ?? ''); ?>"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                       placeholder="example@hospital.com">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">หมายเลขโทรศัพท์</label>
+                                <input type="tel" name="phone" 
+                                       value="<?php echo htmlspecialchars($edit_user['phone'] ?? ''); ?>"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                       placeholder="0xx-xxx-xxxx">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Information -->
+                    <div class="bg-blue-50 p-6 rounded-xl">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4">🔐 ข้อมูลบัญชี</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อผู้ใช้ *</label>
+                                <input type="text" name="username" required 
+                                       value="<?php echo htmlspecialchars($edit_user['username'] ?? ''); ?>"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                       placeholder="username">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">แผนก</label>
+                                <select name="department_id" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="">เลือกแผนก</option>
+                                    <?php foreach ($departments as $dept): ?>
+                                    <option value="<?php echo $dept['id']; ?>" <?php echo ($edit_user['department_id'] ?? '') == $dept['id'] ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($dept['name']); ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Password Section -->
+                    <div class="bg-yellow-50 p-6 rounded-xl">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4">🔒 รหัสผ่าน</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <?php echo $action === 'add' ? 'รหัสผ่าน *' : 'รหัสผ่านใหม่ (เว้นว่างหากไม่เปลี่ยน)'; ?>
+                                </label>
+                                <input type="password" name="<?php echo $action === 'add' ? 'password' : 'new_password'; ?>" 
+                                       <?php echo $action === 'add' ? 'required' : ''; ?>
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                       placeholder="อย่างน้อย 6 ตัวอักษร">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">ยืนยันรหัสผ่าน</label>
+                                <input type="password" name="confirm_password" 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                       placeholder="กรอกรหัสผ่านอีกครั้ง">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Role & Permissions -->
+                    <div class="bg-purple-50 p-6 rounded-xl">
+                        <h4 class="text    <!-- Navigation -->
+    <nav class="bg-gradient-to-r from-indigo-600 to-purple-700 text-white shadow-2xl sticky top-0 z-40">
+        <div class="container mx-auto px-4 lg:px-6">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <div class="w-14 h-14 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center backdrop-blur-sm shadow-lg">
+                        <span class="text-white font-bold text-xl">👥</span>
+                    </div>
+                    <div>
+                        <h1 class="text-xl lg:text-2xl font-bold">จัดการผู้ใช้งาน</h1>
+                        <p class="text-indigo-200 text-sm">ระบบจัดการบัญชีผู้ใช้และสิทธิ์</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right hidden md:block">
+                        <p class="text-sm">สวัสดี, <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Admin'); ?></p>
+                        <p class="text-xs text-indigo-200"><?php echo date('d/m/Y H:i'); ?></p>
+                    </div>
+                    <a href="../logout.php" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl transition duration-300 shadow-lg">
+                        ออกจากระบบ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex min-h-screen">
+        <!-- Include Sidebar -->
+        <?php include 'sidebar.php'; ?>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 lg:p-8 overflow-x-hidden">
+            <!-- Messages -->
+            <?php if ($message): ?>
+            <div class="mb-6 bg-green-50 border-l-4 border-green-400 text-green-700 px-4 py-3 rounded-lg fade-in">
+                <div class="flex items-center">
+                    <span class="text-2xl mr-3">✅</span>
+                    <span><?php echo $message; ?></span>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($error): ?>
+            <div class="mb-6 bg-red-50 border-l-4 border-red-400 text-red-700 px-4 py-3 rounded-lg fade-in">
+                <div class="flex items-center">
+                    <span class="text-2xl mr-3">❌</span>
+                    <span><?php echo $error; ?></span>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if (empty($action)): ?>
+            <!-- List View -->
+            <!-- Page Header -->
+            <div class="mb-8 fade-in">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between">
+                    <div class="mb-4 lg:mb-0">
+                        <h2 class="text-3xl lg:text-4xl font-bold text-white mb-2">👥 จัดการผู้ใช้งาน</h2>
+                        <p class="text-gray-200">จัดการบัญชีผู้ใช้ สิทธิ์การเข้าถึง และข้อมูลส่วนตัว</p>
+                    </div>
+                    <a href="?action=add" class="bg-white text-indigo-600 hover:bg-indigo-50 px-6 py-3 rounded-xl<?php
 require_once '../includes/auth.php';
 require_once '../config/database.php';
+require_once 'functions.php';
 
 // Require admin role
 requireAdmin('../login.php');
 
-$page_title = "จัดการผู้ใช้ระบบ";
+// กำหนดหน้าปัจจุบันสำหรับ sidebar
+$current_page = 'users';
+$page_title = "จัดการผู้ใช้งาน";
 
-// Handle actions
+// Get database connection
+$db = new Database();
+$conn = $db->getConnection();
+
+// Handle form submissions
 $message = '';
 $error = '';
+$action = $_GET['action'] ?? $_POST['action'] ?? '';
 
-if ($_POST) {
-    $action = $_POST['action'] ?? '';
-    
+if ($_POST && $action) {
     try {
-        $db = new Database();
-        $conn = $db->getConnection();
-        
-        if ($action === 'add') {
-            $username = sanitizeInput($_POST['username'] ?? '');
-            $email = sanitizeInput($_POST['email'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $first_name = sanitizeInput($_POST['first_name'] ?? '');
-            $last_name = sanitizeInput($_POST['last_name'] ?? '');
-            $role = sanitizeInput($_POST['role'] ?? 'staff');
-            $phone = sanitizeInput($_POST['phone'] ?? '');
-            
-            if (empty($username) || empty($email) || empty($password) || empty($first_name) || empty($last_name)) {
-                $error = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน';
-            } elseif (strlen($password) < 6) {
-                $error = 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร';
-            } else {
-                // Check if username or email already exists
-                $stmt = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
-                $stmt->execute(array($username, $email));
-                if ($stmt->fetch()) {
-                    $error = 'ชื่อผู้ใช้หรืออีเมลนี้มีอยู่ในระบบแล้ว';
-                } else {
-                    $password_hash = hashPassword($password);
-                    
-                    $stmt = $conn->prepare("
-                        INSERT INTO users (username, email, password_hash, first_name, last_name, 
-                                         role, phone, is_active, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW())
-                    ");
-                    
-                    if ($stmt->execute(array(
-                        $username, $email, $password_hash, $first_name, $last_name,
-                        $role, $phone
-                    ))) {
-                        $user_id = $conn->lastInsertId();
-                        logActivity($conn, $_SESSION['user_id'], 'user_created', 'users', $user_id, null, array(
-                            'username' => $username,
-                            'role' => $role
-                        ));
-                        $message = 'เพิ่มผู้ใช้ใหม่เรียบร้อยแล้ว';
-                    } else {
-                        $error = 'เกิดข้อผิดพลาดในการบันทึก';
-                    }
-                }
-            }
-        } elseif ($action === 'edit') {
-            $id = (int)($_POST['id'] ?? 0);
-            $username = sanitizeInput($_POST['username'] ?? '');
-            $email = sanitizeInput($_POST['email'] ?? '');
-            $first_name = sanitizeInput($_POST['first_name'] ?? '');
-            $last_name = sanitizeInput($_POST['last_name'] ?? '');
-            $role = sanitizeInput($_POST['role'] ?? 'staff');
-            $phone = sanitizeInput($_POST['phone'] ?? '');
-            $password = $_POST['password'] ?? '';
-            
-            if (empty($username) || empty($email) || empty($first_name) || empty($last_name)) {
-                $error = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน';
-            } else {
-                // Get old data
-                $stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
-                $stmt->execute(array($id));
-                $old_data = $stmt->fetch();
+        switch ($action) {
+            case 'add':
+                $username = sanitizeInput($_POST['username'] ?? '');
+                $password = $_POST['password'] ?? '';
+                $confirm_password = $_POST['confirm_password'] ?? '';
+                $email = sanitizeInput($_POST['email'] ?? '');
+                $first_name = sanitizeInput($_POST['first_name'] ?? '');
+                $last_name = sanitizeInput($_POST['last_name'] ?? '');
+                $role = sanitizeInput($_POST['role'] ?? 'user');
+                $department_id = (int)($_POST['department_id'] ?? 0);
+                $phone = sanitizeInput($_POST['phone'] ?? '');
+                $is_active = isset($_POST['is_active']) ? 1 : 0;
                 
-                if ($old_data) {
-                    // Check if username or email already exists (except current user)
-                    $stmt = $conn->prepare("SELECT id FROM users WHERE (username = ? OR email = ?) AND id != ?");
-                    $stmt->execute(array($username, $email, $id));
+                // Validation
+                if (empty($username) || empty($password) || empty($email) || empty($first_name) || empty($last_name)) {
+                    $error = "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน";
+                } elseif ($password !== $confirm_password) {
+                    $error = "รหัสผ่านไม่ตรงกัน";
+                } elseif (strlen($password) < 6) {
+                    $error = "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร";
+                } else {
+                    // Check if username or email already exists
+                    $stmt = $conn->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
+                    $stmt->execute([$username, $email]);
+                    
                     if ($stmt->fetch()) {
-                        $error = 'ชื่อผู้ใช้หรืออีเมลนี้มีอยู่ในระบบแล้ว';
+                        $error = "ชื่อผู้ใช้หรืออีเมลนี้มีอยู่ในระบบแล้ว";
                     } else {
-                        $update_fields = array(
-                            "username = ?", "email = ?", "first_name = ?", "last_name = ?",
-                            "role = ?", "phone = ?", "updated_at = NOW()"
-                        );
-                        $params = array($username, $email, $first_name, $last_name, $role, $phone);
+                        $password_hash = hashPassword($password);
                         
-                        // Update password if provided
-                        if (!empty($password)) {
-                            if (strlen($password) < 6) {
-                                $error = 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร';
-                            } else {
-                                $update_fields[] = "password_hash = ?";
-                                $params[] = hashPassword($password);
-                            }
-                        }
+                        $stmt = $conn->prepare("
+                            INSERT INTO users (username, password_hash, email, first_name, last_name, role, department_id, phone, is_active, created_at, updated_at) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                        ");
                         
-                        if (!$error) {
-                            $params[] = $id;
-                            $sql = "UPDATE users SET " . implode(', ', $update_fields) . " WHERE id = ?";
-                            $stmt = $conn->prepare($sql);
-                            
-                            if ($stmt->execute($params)) {
-                                logActivity($conn, $_SESSION['user_id'], 'user_updated', 'users', $id, array(
-                                    'username' => $old_data['username'],
-                                    'role' => $old_data['role']
-                                ), array(
-                                    'username' => $username,
-                                    'role' => $role
-                                ));
-                                $message = 'แก้ไขข้อมูลผู้ใช้เรียบร้อยแล้ว';
-                            } else {
-                                $error = 'เกิดข้อผิดพลาดในการแก้ไข';
-                            }
+                        if ($stmt->execute([$username, $password_hash, $email, $first_name, $last_name, $role, $department_id ?: null, $phone, $is_active])) {
+                            $user_id = $conn->lastInsertId();
+                            logActivity($conn, $_SESSION['user_id'], 'user_created', 'users', $user_id);
+                            $message = "เพิ่มผู้ใช้เรียบร้อยแล้ว";
+                            $action = ''; // Reset action to show list
+                        } else {
+                            $error = "ไม่สามารถเพิ่มผู้ใช้ได้";
                         }
                     }
-                } else {
-                    $error = 'ไม่พบผู้ใช้นี้';
                 }
-            }
-        } elseif ($action === 'toggle_status') {
-            $id = (int)($_POST['id'] ?? 0);
-            
-            // Prevent disabling own account
-            if ($id == $_SESSION['user_id']) {
-                $error = 'ไม่สามารถปิดใช้งานบัญชีของตนเองได้';
-            } else {
-                // Get current status
-                $stmt = $conn->prepare("SELECT is_active, username FROM users WHERE id = ?");
-                $stmt->execute(array($id));
-                $user_data = $stmt->fetch();
+                break;
                 
-                if ($user_data) {
-                    $new_status = $user_data['is_active'] ? 0 : 1;
-                    $stmt = $conn->prepare("UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?");
+            case 'edit':
+                $user_id = (int)($_POST['user_id'] ?? 0);
+                $username = sanitizeInput($_POST['username'] ?? '');
+                $email = sanitizeInput($_POST['email'] ?? '');
+                $first_name = sanitizeInput($_POST['first_name'] ?? '');
+                $last_name = sanitizeInput($_POST['last_name'] ?? '');
+                $role = sanitizeInput($_POST['role'] ?? 'user');
+                $department_id = (int)($_POST['department_id'] ?? 0);
+                $phone = sanitizeInput($_POST['phone'] ?? '');
+                $is_active = isset($_POST['is_active']) ? 1 : 0;
+                $new_password = $_POST['new_password'] ?? '';
+                $confirm_password = $_POST['confirm_password'] ?? '';
+                
+                if (!$user_id || empty($username) || empty($email) || empty($first_name) || empty($last_name)) {
+                    $error = "กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน";
+                } elseif ($new_password && $new_password !== $confirm_password) {
+                    $error = "รหัสผ่านใหม่ไม่ตรงกัน";
+                } elseif ($new_password && strlen($new_password) < 6) {
+                    $error = "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร";
+                } else {
+                    // Check if username or email already exists (excluding current user)
+                    $stmt = $conn->prepare("SELECT id FROM users WHERE (username = ? OR email = ?) AND id != ?");
+                    $stmt->execute([$username, $email, $user_id]);
                     
-                    if ($stmt->execute(array($new_status, $id))) {
-                        $action_text = $new_status ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
-                        logActivity($conn, $_SESSION['user_id'], 'user_status_changed', 'users', $id, array(
-                            'old_status' => $user_data['is_active']
-                        ), array(
-                            'new_status' => $new_status
-                        ));
-                        $message = $action_text . 'บัญชี ' . $user_data['username'] . ' เรียบร้อยแล้ว';
+                    if ($stmt->fetch()) {
+                        $error = "ชื่อผู้ใช้หรืออีเมลนี้มีอยู่ในระบบแล้ว";
                     } else {
-                        $error = 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ';
+                        // Get old data for logging
+                        $old_user = getRecord($conn, 'users', $user_id);
+                        
+                        // Prepare update query
+                        if ($new_password) {
+                            $password_hash = hashPassword($new_password);
+                            $stmt = $conn->prepare("
+                                UPDATE users 
+                                SET username = ?, password_hash = ?, email = ?, first_name = ?, last_name = ?, role = ?, department_id = ?, phone = ?, is_active = ?, updated_at = NOW()
+                                WHERE id = ?
+                            ");
+                            $params = [$username, $password_hash, $email, $first_name, $last_name, $role, $department_id ?: null, $phone, $is_active, $user_id];
+                        } else {
+                            $stmt = $conn->prepare("
+                                UPDATE users 
+                                SET username = ?, email = ?, first_name = ?, last_name = ?, role = ?, department_id = ?, phone = ?, is_active = ?, updated_at = NOW()
+                                WHERE id = ?
+                            ");
+                            $params = [$username, $email, $first_name, $last_name, $role, $department_id ?: null, $phone, $is_active, $user_id];
+                        }
+                        
+                        if ($stmt->execute($params)) {
+                            logActivity($conn, $_SESSION['user_id'], 'user_updated', 'users', $user_id, $old_user);
+                            $message = "แก้ไขข้อมูลผู้ใช้เรียบร้อยแล้ว";
+                            $action = ''; // Reset action to show list
+                        } else {
+                            $error = "ไม่สามารถแก้ไขข้อมูลผู้ใช้ได้";
+                        }
                     }
-                } else {
-                    $error = 'ไม่พบผู้ใช้นี้';
                 }
-            }
-        } elseif ($action === 'delete') {
-            $id = (int)($_POST['id'] ?? 0);
-            
-            // Prevent deleting own account
-            if ($id == $_SESSION['user_id']) {
-                $error = 'ไม่สามารถลบบัญชีของตนเองได้';
-            } else {
-                // Get user info before deletion
-                $stmt = $conn->prepare("SELECT username FROM users WHERE id = ?");
-                $stmt->execute(array($id));
-                $user_info = $stmt->fetch();
+                break;
                 
-                if ($user_info) {
-                    $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
-                    if ($stmt->execute(array($id))) {
-                        logActivity($conn, $_SESSION['user_id'], 'user_deleted', 'users', $id, array(
-                            'username' => $user_info['username']
-                        ), null);
-                        $message = 'ลบผู้ใช้เรียบร้อยแล้ว';
+            case 'delete':
+                $user_id = (int)($_POST['user_id'] ?? 0);
+                if ($user_id) {
+                    // Prevent deleting self
+                    if ($user_id == $_SESSION['user_id']) {
+                        $error = "ไม่สามารถลบบัญชีของตนเองได้";
                     } else {
-                        $error = 'เกิดข้อผิดพลาดในการลบ';
+                        $old_user = getRecord($conn, 'users', $user_id);
+                        
+                        if (deleteRecord($conn, 'users', $user_id)) {
+                            logActivity($conn, $_SESSION['user_id'], 'user_deleted', 'users', $user_id, $old_user);
+                            $message = "ลบผู้ใช้เรียบร้อยแล้ว";
+                        } else {
+                            $error = "ไม่สามารถลบผู้ใช้ได้";
+                        }
                     }
-                } else {
-                    $error = 'ไม่พบผู้ใช้นี้';
                 }
-            }
+                break;
+                
+            case 'toggle_status':
+                $user_id = (int)($_POST['user_id'] ?? 0);
+                $new_status = (int)($_POST['new_status'] ?? 0);
+                
+                if ($user_id) {
+                    // Prevent disabling self
+                    if ($user_id == $_SESSION['user_id'] && $new_status == 0) {
+                        $error = "ไม่สามารถปิดใช้งานบัญชีของตนเองได้";
+                    } else {
+                        $stmt = $conn->prepare("UPDATE users SET is_active = ?, updated_at = NOW() WHERE id = ?");
+                        if ($stmt->execute([$new_status, $user_id])) {
+                            logActivity($conn, $_SESSION['user_id'], 'user_status_changed', 'users', $user_id);
+                            $message = $new_status ? "เปิดใช้งานผู้ใช้เรียบร้อยแล้ว" : "ปิดใช้งานผู้ใช้เรียบร้อยแล้ว";
+                        } else {
+                            $error = "ไม่สามารถเปลี่ยนสถานะผู้ใช้ได้";
+                        }
+                    }
+                }
+                break;
         }
     } catch (Exception $e) {
-        $error = 'เกิดข้อผิดพลาด: ' . $e->getMessage();
         logError($e->getMessage(), __FILE__, __LINE__);
+        $error = "เกิดข้อผิดพลาด กรุณาลองใหม่";
     }
 }
 
-// Get filter parameters
-$role_filter = $_GET['role'] ?? '';
-$status_filter = $_GET['status'] ?? '';
-$search = $_GET['search'] ?? '';
-$page = (int)($_GET['page'] ?? 1);
-$per_page = 20;
-$offset = ($page - 1) * $per_page;
+// Get user for editing
+$edit_user = null;
+if ($action === 'edit' && isset($_GET['id'])) {
+    $edit_user = getRecord($conn, 'users', (int)$_GET['id']);
+    if (!$edit_user) {
+        $error = "ไม่พบผู้ใช้ที่ต้องการแก้ไข";
+        $action = '';
+    }
+}
 
+// Get departments for form
+$departments = [];
 try {
-    $db = new Database();
-    $conn = $db->getConnection();
+    $stmt = $conn->prepare("SELECT id, name FROM departments ORDER BY name");
+    $stmt->execute();
+    $departments = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Departments table might not exist
+}
+
+// Pagination and filtering for list view
+if (empty($action)) {
+    $page = max(1, (int)($_GET['page'] ?? 1));
+    $per_page = 10;
+    $offset = ($page - 1) * $per_page;
     
-    // Build WHERE clause
-    $where_conditions = array("1=1");
-    $params = array();
+    // Filter options
+    $role_filter = $_GET['role'] ?? '';
+    $status_filter = $_GET['status'] ?? '';
+    $department_filter = $_GET['department'] ?? '';
+    $search = sanitizeInput($_GET['search'] ?? '');
     
-    if (!empty($role_filter)) {
+    // Build query
+    $where_conditions = ["1=1"];
+    $params = [];
+    
+    if ($role_filter) {
         $where_conditions[] = "u.role = ?";
         $params[] = $role_filter;
     }
     
-    if (!empty($status_filter)) {
+    if ($status_filter !== '') {
         $where_conditions[] = "u.is_active = ?";
-        $params[] = ($status_filter === 'active') ? 1 : 0;
+        $params[] = (int)$status_filter;
     }
     
-    if (!empty($search)) {
-        $where_conditions[] = "(u.username LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)";
-        $search_term = '%' . $search . '%';
-        $params[] = $search_term;
-        $params[] = $search_term;
-        $params[] = $search_term;
-        $params[] = $search_term;
+    if ($department_filter) {
+        $where_conditions[] = "u.department_id = ?";
+        $params[] = $department_filter;
+    }
+    
+    if ($search) {
+        $where_conditions[] = "(u.first_name LIKE ? OR u.last_name LIKE ? OR u.username LIKE ? OR u.email LIKE ?)";
+        $search_param = "%$search%";
+        $params[] = $search_param;
+        $params[] = $search_param;
+        $params[] = $search_param;
+        $params[] = $search_param;
     }
     
     $where_clause = implode(' AND ', $where_conditions);
     
     // Get total count
-    $count_sql = "
-        SELECT COUNT(*) as total 
+    $count_query = "
+        SELECT COUNT(*) 
         FROM users u 
+        LEFT JOIN departments d ON u.department_id = d.id 
         WHERE $where_clause
     ";
-    $stmt = $conn->prepare($count_sql);
+    $stmt = $conn->prepare($count_query);
     $stmt->execute($params);
-    $total_users = $stmt->fetch()['total'];
+    $total_records = $stmt->fetchColumn();
     
-    // Get users list
-    $list_params = $params;
-    $list_params[] = $per_page;
-    $list_params[] = $offset;
-    
-    $users_sql = "
-        SELECT u.*
+    // Get records
+    $query = "
+        SELECT u.*, d.name as department_name 
         FROM users u 
+        LEFT JOIN departments d ON u.department_id = d.id 
         WHERE $where_clause
-        ORDER BY u.created_at DESC
-        LIMIT ? OFFSET ?
+        ORDER BY u.created_at DESC 
+        LIMIT $per_page OFFSET $offset
     ";
-    $stmt = $conn->prepare($users_sql);
-    $stmt->execute($list_params);
-    $users = $stmt->fetchAll();
+    $stmt = $conn->prepare($query);
+    $stmt->execute($params);
+    $users_list = $stmt->fetchAll();
     
-    // Get statistics
-    $stats_sql = "
-        SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admin_count,
-            SUM(CASE WHEN role = 'doctor' THEN 1 ELSE 0 END) as doctor_count,
-            SUM(CASE WHEN role = 'nurse' THEN 1 ELSE 0 END) as nurse_count,
-            SUM(CASE WHEN role = 'staff' THEN 1 ELSE 0 END) as staff_count,
-            SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_count,
-            SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) as inactive_count
-        FROM users
-    ";
-    $stmt = $conn->prepare($stats_sql);
-    $stmt->execute();
-    $stats = $stmt->fetch();
-    
-} catch (Exception $e) {
-    $error = "เกิดข้อผิดพลาดในการโหลดข้อมูล";
-    logError($e->getMessage(), __FILE__, __LINE__);
-    $users = array();
-    $stats = array('total' => 0, 'admin_count' => 0, 'doctor_count' => 0, 'nurse_count' => 0, 'staff_count' => 0, 'active_count' => 0, 'inactive_count' => 0);
-    $total_users = 0;
+    $pagination = getPagination($total_records, $per_page, $page);
 }
 
-$total_pages = ceil($total_users / $per_page);
+// Get statistics
+$stats = [
+    'total' => getTotalUsers($conn),
+    'active' => 0,
+    'inactive' => 0,
+    'admins' => 0
+];
+
+try {
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE is_active = 1");
+    $stmt->execute();
+    $stats['active'] = $stmt->fetchColumn() ?? 0;
+    
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE is_active = 0");
+    $stmt->execute();
+    $stats['inactive'] = $stmt->fetchColumn() ?? 0;
+    
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1");
+    $stmt->execute();
+    $stats['admins'] = $stmt->fetchColumn() ?? 0;
+} catch (Exception $e) {
+    // Keep default values
+}
 ?>
 
 <!DOCTYPE html>
@@ -288,821 +966,38 @@ $total_pages = ceil($total_users / $per_page);
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Sarabun', sans-serif; }
-        .fade-in { animation: fadeIn 0.3s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .hover-lift { transition: transform 0.2s ease; }
-        .hover-lift:hover { transform: translateY(-2px); }
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .hover-lift {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- Enhanced Navigation -->
-    <nav class="bg-gradient-to-r from-blue-800 to-blue-900 text-white shadow-xl">
-        <div class="container mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <div class="flex items-center space-x-3">
-                    <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                        <span class="text-white font-bold text-lg">THC</span>
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-bold">ระบบจัดการโรงพยาบาลทุ่งหัวช้าง</h1>
-                        <p class="text-blue-200 text-sm">ระบบจัดการข่าวสารและประกาศ</p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <p class="text-sm">สวัสดี, <?php echo htmlspecialchars($_SESSION['user_name']); ?></p>
-                        <p class="text-xs text-blue-200"><?php echo date('d/m/Y H:i'); ?></p>
-                    </div>
-                    <a href="../logout.php" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition duration-300 hover-lift">
-                        ออกจากระบบ
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <div class="flex min-h-screen">
-        <!-- Enhanced Sidebar -->
-        <aside class="w-64 bg-white shadow-xl border-r border-gray-200">
-            <div class="p-6">
-                <div class="space-y-2">
-                    <a href="dashboard.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition duration-200">
-                        <span class="text-xl mr-3">📊</span> แดชบอร์ด
-                    </a>
-                    <a href="news.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition duration-200">
-                        <span class="text-xl mr-3">📰</span> จัดการข่าวสาร
-                    </a>
-                    <a href="reports.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition duration-200">
-                        <span class="text-xl mr-3">📊</span> รายงาน
-                    </a>
-                    <a href="users.php" class="flex items-center py-3 px-4 text-blue-600 bg-blue-50 rounded-lg font-medium border-l-4 border-blue-600">
-                        <span class="text-xl mr-3">👨‍💼</span> จัดการผู้ใช้
-                    </a>
-                    <a href="settings.php" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition duration-200">
-                        <span class="text-xl mr-3">⚙️</span> ตั้งค่าระบบ
-                    </a>
-                    <hr class="my-3">
-                    <a href="../index.php" target="_blank" class="flex items-center py-3 px-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition duration-200">
-                        <span class="text-xl mr-3">🌐</span> เว็บไซต์หลัก
-                    </a>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="flex-1 p-8">
-            <!-- Enhanced Messages -->
-            <?php if ($message): ?>
-            <div class="bg-green-50 border-l-4 border-green-400 text-green-700 px-6 py-4 rounded-lg mb-6 fade-in shadow-sm">
-                <div class="flex items-center">
-                    <span class="text-2xl mr-3">✅</span>
-                    <span><?php echo $message; ?></span>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <?php if ($error): ?>
-            <div class="bg-red-50 border-l-4 border-red-400 text-red-700 px-6 py-4 rounded-lg mb-6 fade-in shadow-sm">
-                <div class="flex items-center">
-                    <span class="text-2xl mr-3">❌</span>
-                    <span><?php echo $error; ?></span>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Enhanced Header -->
-            <div class="mb-8">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h2 class="text-4xl font-bold text-gray-800 mb-2">จัดการผู้ใช้ระบบ</h2>
-                        <p class="text-gray-600">จัดการบัญชีผู้ใช้และสิทธิ์การเข้าถึงระบบ</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm text-gray-500">อัปเดตล่าสุด</p>
-                        <p class="text-lg font-semibold text-gray-700"><?php echo date('d/m/Y H:i:s'); ?></p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Enhanced Statistics Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
-                <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl shadow-lg p-6 hover-lift">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-3xl font-bold"><?php echo number_format($stats['total']); ?></div>
-                            <div class="text-blue-100">ทั้งหมด</div>
-                        </div>
-                        <div class="text-4xl opacity-80">👥</div>
-                    </div>
-                </div>
-                <div class="bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl shadow-lg p-6 hover-lift">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-3xl font-bold"><?php echo number_format($stats['admin_count']); ?></div>
-                            <div class="text-red-100">Admin</div>
-                        </div>
-                        <div class="text-4xl opacity-80">👑</div>
-                    </div>
-                </div>
-                <div class="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl shadow-lg p-6 hover-lift">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-3xl font-bold"><?php echo number_format($stats['doctor_count']); ?></div>
-                            <div class="text-green-100">แพทย์</div>
-                        </div>
-                        <div class="text-4xl opacity-80">👨‍⚕️</div>
-                    </div>
-                </div>
-                <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl shadow-lg p-6 hover-lift">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-3xl font-bold"><?php echo number_format($stats['nurse_count']); ?></div>
-                            <div class="text-purple-100">พยาบาล</div>
-                        </div>
-                        <div class="text-4xl opacity-80">👩‍⚕️</div>
-                    </div>
-                </div>
-                <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl shadow-lg p-6 hover-lift">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-3xl font-bold"><?php echo number_format($stats['staff_count']); ?></div>
-                            <div class="text-orange-100">เจ้าหน้าที่</div>
-                        </div>
-                        <div class="text-4xl opacity-80">👨‍💼</div>
-                    </div>
-                </div>
-                <div class="bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl shadow-lg p-6 hover-lift">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <div class="text-3xl font-bold"><?php echo number_format($stats['active_count']); ?></div>
-                            <div class="text-teal-100">ใช้งานได้</div>
-                        </div>
-                        <div class="text-4xl opacity-80">✅</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Enhanced Action Bar -->
-            <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-                <div class="flex flex-col lg:flex-row justify-between items-center gap-4">
-                    <button onclick="openAddModal()" class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition duration-300 hover-lift shadow-lg">
-                        <span class="text-xl mr-2">➕</span> เพิ่มผู้ใช้ใหม่
-                    </button>
-                    
-                    <!-- Enhanced Search and Filter -->
-                    <form method="GET" class="flex flex-col md:flex-row gap-3">
-                        <div class="relative">
-                            <input type="text" name="search" placeholder="ค้นหาผู้ใช้..." 
-                                   value="<?php echo htmlspecialchars($search); ?>"
-                                   class="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64">
-                            <span class="absolute left-3 top-3 text-gray-400">🔍</span>
-                        </div>
-                        
-                        <select name="role" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="">ทุกบทบาท</option>
-                            <option value="admin" <?php echo $role_filter === 'admin' ? 'selected' : ''; ?>>👑 Admin</option>
-                            <option value="doctor" <?php echo $role_filter === 'doctor' ? 'selected' : ''; ?>>👨‍⚕️ แพทย์</option>
-                            <option value="nurse" <?php echo $role_filter === 'nurse' ? 'selected' : ''; ?>>👩‍⚕️ พยาบาล</option>
-                            <option value="staff" <?php echo $role_filter === 'staff' ? 'selected' : ''; ?>>👨‍💼 เจ้าหน้าที่</option>
-                        </select>
-                        
-                        <select name="status" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="">ทุกสถานะ</option>
-                            <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>✅ ใช้งานได้</option>
-                            <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>❌ ปิดใช้งาน</option>
-                        </select>
-                        
-                        <button type="submit" 
-                                class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition duration-300 hover-lift">
-                            🔍 ค้นหา
-                        </button>
-                        
-                        <?php if (!empty($search) || !empty($role_filter) || !empty($status_filter)): ?>
-                        <a href="users.php" class="bg-gray-400 text-white px-6 py-3 rounded-lg hover:bg-gray-500 transition duration-300 hover-lift">
-                            ✕ ล้าง
-                        </a>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Enhanced Users Table -->
-            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
-                            <tr>
-                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="flex items-center space-x-1">
-                                        <span>👤</span>
-                                        <span>ผู้ใช้</span>
-                                    </div>
-                                </th>
-                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="flex items-center space-x-1">
-                                        <span>🎭</span>
-                                        <span>บทบาท</span>
-                                    </div>
-                                </th>
-                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="flex items-center space-x-1">
-                                        <span>📊</span>
-                                        <span>สถานะ</span>
-                                    </div>
-                                </th>
-                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="flex items-center space-x-1">
-                                        <span>🕐</span>
-                                        <span>เข้าใช้ล่าสุด</span>
-                                    </div>
-                                </th>
-                                <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="flex items-center space-x-1">
-                                        <span>🔧</span>
-                                        <span>จัดการ</span>
-                                    </div>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <?php if (empty($users)): ?>
-                            <tr>
-                                <td colspan="5" class="px-6 py-16 text-center text-gray-500">
-                                    <div class="text-6xl mb-4">👨‍💼</div>
-                                    <div class="text-xl font-semibold mb-2">ไม่พบข้อมูลผู้ใช้</div>
-                                    <div class="text-gray-400">ลองปรับเปลี่ยนคำค้นหาหรือเพิ่มผู้ใช้ใหม่</div>
-                                </td>
-                            </tr>
-                            <?php else: ?>
-                            <?php foreach ($users as $user): ?>
-                            <tr class="hover:bg-gray-50 transition duration-200">
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center space-x-4">
-                                        <div class="w-12 h-12 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                                            <span class="text-white font-bold text-lg">
-                                                <?php echo mb_substr($user['first_name'], 0, 1) . mb_substr($user['last_name'], 0, 1); ?>
-                                            </span>
-                                        </div>
-                                        <div class="flex-1">
-                                            <h3 class="text-sm font-semibold text-gray-900 mb-1">
-                                                <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>
-                                                <?php if ($user['id'] == $_SESSION['user_id']): ?>
-                                                <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">👤 คุณ</span>
-                                                <?php endif; ?>
-                                            </h3>
-                                            <p class="text-sm text-gray-600 mb-1">@<?php echo htmlspecialchars($user['username']); ?></p>
-                                            <p class="text-xs text-gray-400">📧 <?php echo htmlspecialchars($user['email']); ?></p>
-                                            <?php if ($user['phone']): ?>
-                                            <p class="text-xs text-gray-400">📞 <?php echo htmlspecialchars($user['phone']); ?></p>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <?php
-                                    $role_configs = array(
-                                        'admin' => ['name' => 'ผู้ดูแลระบบ', 'color' => 'bg-red-100 text-red-800', 'icon' => '👑'],
-                                        'doctor' => ['name' => 'แพทย์', 'color' => 'bg-green-100 text-green-800', 'icon' => '👨‍⚕️'],
-                                        'nurse' => ['name' => 'พยาบาล', 'color' => 'bg-purple-100 text-purple-800', 'icon' => '👩‍⚕️'],
-                                        'staff' => ['name' => 'เจ้าหน้าที่', 'color' => 'bg-blue-100 text-blue-800', 'icon' => '👨‍💼']
-                                    );
-                                    $role_config = $role_configs[$user['role']] ?? ['name' => $user['role'], 'color' => 'bg-gray-100 text-gray-800', 'icon' => '👤'];
-                                    ?>
-                                    <span class="px-3 py-1 text-xs font-semibold rounded-full <?php echo $role_config['color']; ?>">
-                                        <?php echo $role_config['icon']; ?> <?php echo $role_config['name']; ?>
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="space-y-1">
-                                        <?php if ($user['is_active']): ?>
-                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                            ✅ ใช้งานได้
-                                        </span>
-                                        <?php else: ?>
-                                        <span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                                            ❌ ปิดใช้งาน
-                                        </span>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm">
-                                        <?php if ($user['last_login']): ?>
-                                        <div class="text-gray-900 font-medium"><?php echo formatThaiDateTime($user['last_login']); ?></div>
-                                        <?php else: ?>
-                                        <span class="text-gray-400 italic">ยังไม่เคยเข้าใช้</span>
-                                        <?php endif; ?>
-                                        <div class="text-xs text-gray-500 mt-1">
-                                            สร้าง: <?php echo formatThaiDate($user['created_at']); ?>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex space-x-2">
-                                        <button onclick="editUser(<?php echo htmlspecialchars(json_encode($user)); ?>)" 
-                                                class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1 rounded-lg transition duration-200 text-xs font-medium">
-                                            ✏️ แก้ไข
-                                        </button>
-                                        <?php if ($user['id'] != $_SESSION['user_id']): ?>
-                                        <button onclick="toggleUserStatus(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['username'], ENT_QUOTES); ?>', <?php echo $user['is_active']; ?>)" 
-                                                class="bg-yellow-100 text-yellow-600 hover:bg-yellow-200 px-3 py-1 rounded-lg transition duration-200 text-xs font-medium">
-                                            <?php echo $user['is_active'] ? '❌ ปิดใช้งาน' : '✅ เปิดใช้งาน'; ?>
-                                        </button>
-                                        <button onclick="deleteUser(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['username'], ENT_QUOTES); ?>')" 
-                                                class="bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1 rounded-lg transition duration-200 text-xs font-medium">
-                                            🗑️ ลบ
-                                        </button>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Enhanced Pagination -->
-                <?php if ($total_pages > 1): ?>
-                <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
-                    <div class="flex-1 flex justify-between sm:hidden">
-                        <?php if ($page > 1): ?>
-                        <a href="?page=<?php echo $page - 1; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
-                           class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                            ← ก่อนหน้า
-                        </a>
-                        <?php endif; ?>
-                        <?php if ($page < $total_pages): ?>
-                        <a href="?page=<?php echo $page + 1; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
-                           class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                            ถัดไป →
-                        </a>
-                        <?php endif; ?>
-                    </div>
-                    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                        <div>
-                            <p class="text-sm text-gray-700">
-                                แสดง <span class="font-medium"><?php echo number_format($offset + 1); ?></span> ถึง 
-                                <span class="font-medium"><?php echo number_format($total_users); ?></span> รายการ
-                            </p>
-                        </div>
-                        <div>
-                            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                <?php if ($page > 1): ?>
-                                <a href="?page=<?php echo $page - 1; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
-                                   class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                                    ←
-                                </a>
-                                <?php endif; ?>
-                                
-                                <?php
-                                $start = max(1, $page - 2);
-                                $end = min($total_pages, $page + 2);
-                                
-                                for ($i = $start; $i <= $end; $i++):
-                                ?>
-                                <a href="?page=<?php echo $i; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
-                                   class="relative inline-flex items-center px-4 py-2 border text-sm font-medium <?php echo $i == $page ? 'z-10 bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'; ?>">
-                                    <?php echo $i; ?>
-                                </a>
-                                <?php endfor; ?>
-                                
-                                <?php if ($page < $total_pages): ?>
-                                <a href="?page=<?php echo $page + 1; ?>&<?php echo http_build_query(array_filter($_GET, function($k) { return $k !== 'page'; }, ARRAY_FILTER_USE_KEY)); ?>" 
-                                   class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
-                                    →
-                                </a>
-                                <?php endif; ?>
-                            </nav>
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
-            </div>
-        </main>
-    </div>
-
-    <!-- Enhanced Add/Edit User Modal -->
-    <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 backdrop-blur-sm">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl fade-in">
-                <form method="POST" id="userForm">
-                    <!-- Modal Header -->
-                    <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-blue-100">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-2xl font-bold text-gray-900" id="modalTitle">เพิ่มผู้ใช้ใหม่</h3>
-                                <p class="text-gray-600 mt-1">กรอกข้อมูลผู้ใช้และกำหนดสิทธิ์การเข้าถึง</p>
-                            </div>
-                            <button type="button" onclick="closeModal()" class="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition duration-200">
-                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Modal Body -->
-                    <div class="p-6 space-y-6">
-                        <input type="hidden" name="action" id="modalAction" value="add">
-                        <input type="hidden" name="id" id="modalId">
-                        
-                        <!-- Personal Info -->
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <div class="flex items-center mb-3">
-                                <span class="text-2xl mr-2">👤</span>
-                                <h4 class="text-lg font-semibold text-blue-800">ข้อมูลส่วนตัว</h4>
-                            </div>
-                            <div class="grid md:grid-cols-2 gap-4">
-                                <div class="space-y-2">
-                                    <label for="modalFirstName" class="flex items-center text-sm font-medium text-gray-700">
-                                        <span class="text-lg mr-1">👤</span> ชื่อ <span class="text-red-500 ml-1">*</span>
-                                    </label>
-                                    <input type="text" name="first_name" id="modalFirstName" required 
-                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                </div>
-                                
-                                <div class="space-y-2">
-                                    <label for="modalLastName" class="flex items-center text-sm font-medium text-gray-700">
-                                        <span class="text-lg mr-1">👤</span> นามสกุล <span class="text-red-500 ml-1">*</span>
-                                    </label>
-                                    <input type="text" name="last_name" id="modalLastName" required 
-                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4 space-y-2">
-                                <label for="modalPhone" class="flex items-center text-sm font-medium text-gray-700">
-                                    <span class="text-lg mr-1">📞</span> เบอร์โทรศัพท์
-                                </label>
-                                <input type="tel" name="phone" id="modalPhone" 
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                       placeholder="08X-XXX-XXXX">
-                            </div>
-                        </div>
-                        
-                        <!-- Account Info -->
-                        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <div class="flex items-center mb-3">
-                                <span class="text-2xl mr-2">🔐</span>
-                                <h4 class="text-lg font-semibold text-green-800">บัญชีผู้ใช้</h4>
-                            </div>
-                            <div class="grid md:grid-cols-2 gap-4">
-                                <div class="space-y-2">
-                                    <label for="modalUsername" class="flex items-center text-sm font-medium text-gray-700">
-                                        <span class="text-lg mr-1">👤</span> ชื่อผู้ใช้ <span class="text-red-500 ml-1">*</span>
-                                    </label>
-                                    <input type="text" name="username" id="modalUsername" required 
-                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                           placeholder="อย่างน้อย 3 ตัวอักษร">
-                                </div>
-                                
-                                <div class="space-y-2">
-                                    <label for="modalEmail" class="flex items-center text-sm font-medium text-gray-700">
-                                        <span class="text-lg mr-1">📧</span> อีเมล <span class="text-red-500 ml-1">*</span>
-                                    </label>
-                                    <input type="email" name="email" id="modalEmail" required 
-                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                           placeholder="example@email.com">
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4 space-y-2">
-                                <label for="modalPassword" class="flex items-center text-sm font-medium text-gray-700">
-                                    <span class="text-lg mr-1">🔑</span> รหัสผ่าน <span id="passwordRequired" class="text-red-500 ml-1">*</span>
-                                </label>
-                                <input type="password" name="password" id="modalPassword" 
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                       placeholder="อย่างน้อย 6 ตัวอักษร">
-                                <p class="text-xs text-gray-500" id="passwordHelp" style="display: none;">
-                                    สำหรับการแก้ไข: เว้นว่างไว้หากไม่ต้องการเปลี่ยนรหัสผ่าน
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <!-- Role -->
-                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                            <div class="flex items-center mb-3">
-                                <span class="text-2xl mr-2">🎭</span>
-                                <h4 class="text-lg font-semibold text-purple-800">บทบาท</h4>
-                            </div>
-                            <div class="space-y-2">
-                                <label for="modalRole" class="flex items-center text-sm font-medium text-gray-700">
-                                    <span class="text-lg mr-1">🎭</span> บทบาท <span class="text-red-500 ml-1">*</span>
-                                </label>
-                                <select name="role" id="modalRole" required 
-                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                    <option value="staff">👨‍💼 เจ้าหน้าที่</option>
-                                    <option value="nurse">👩‍⚕️ พยาบาล</option>
-                                    <option value="doctor">👨‍⚕️ แพทย์</option>
-                                    <option value="admin">👑 ผู้ดูแลระบบ</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Modal Footer -->
-                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between rounded-b-2xl">
-                        <div class="text-sm text-gray-500">
-                            <span class="font-medium">💡 เคล็ดลับ:</span> ใช้ Ctrl+S เพื่อบันทึกข้อมูล
-                        </div>
-                        <div class="flex space-x-3">
-                            <button type="button" onclick="closeModal()" 
-                                    class="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition duration-200">
-                                ❌ ยกเลิก
-                            </button>
-                            <button type="submit" 
-                                    class="px-6 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:from-blue-700 hover:to-blue-800 transition duration-200 shadow-lg">
-                                💾 บันทึก
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Enhanced Modal Functions
-        function openAddModal() {
-            document.getElementById('modalTitle').innerHTML = '<span class="text-2xl mr-2">➕</span>เพิ่มผู้ใช้ใหม่';
-            document.getElementById('modalAction').value = 'add';
-            document.getElementById('modalId').value = '';
-            document.getElementById('userForm').reset();
-            document.getElementById('modalPassword').required = true;
-            document.getElementById('passwordRequired').textContent = '*';
-            document.getElementById('passwordHelp').style.display = 'none';
-            document.getElementById('userModal').classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function editUser(user) {
-            document.getElementById('modalTitle').innerHTML = '<span class="text-2xl mr-2">✏️</span>แก้ไขผู้ใช้';
-            document.getElementById('modalAction').value = 'edit';
-            document.getElementById('modalId').value = user.id;
-            document.getElementById('modalFirstName').value = user.first_name;
-            document.getElementById('modalLastName').value = user.last_name;
-            document.getElementById('modalUsername').value = user.username;
-            document.getElementById('modalEmail').value = user.email;
-            document.getElementById('modalPassword').value = '';
-            document.getElementById('modalRole').value = user.role;
-            document.getElementById('modalPhone').value = user.phone || '';
-            document.getElementById('modalPassword').required = false;
-            document.getElementById('passwordRequired').textContent = '';
-            document.getElementById('passwordHelp').style.display = 'block';
-            document.getElementById('userModal').classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeModal() {
-            document.getElementById('userModal').classList.add('hidden');
-            document.body.style.overflow = 'auto';
-        }
-
-        function toggleUserStatus(id, username, currentStatus) {
-            const action = currentStatus ? 'ปิดใช้งาน' : 'เปิดใช้งาน';
-            const icon = currentStatus ? '❌' : '✅';
-            
-            // Create custom confirmation modal
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
-            modal.innerHTML = `
-                <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4">
-                    <div class="text-center">
-                        <div class="text-6xl mb-4">${icon}</div>
-                        <h3 class="text-xl font-bold text-gray-900 mb-4">${action}บัญชี?</h3>
-                        <p class="text-gray-600 mb-6">ต้องการ${action}บัญชี "<strong>${username}</strong>" หรือไม่?</p>
-                        <div class="flex space-x-4">
-                            <button onclick="cancelToggle()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition duration-200">ยกเลิก</button>
-                            <button onclick="confirmToggle(${id})" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200">ยืนยัน</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-            
-            window.cancelToggle = () => modal.remove();
-            window.confirmToggle = (id) => {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.innerHTML = `
-                    <input type="hidden" name="action" value="toggle_status">
-                    <input type="hidden" name="id" value="${id}">
-                `;
-                document.body.appendChild(form);
-                form.submit();
-            };
-        }
-
-        function deleteUser(id, username) {
-            // Create custom confirmation modal
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
-            modal.innerHTML = `
-                <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4">
-                    <div class="text-center">
-                        <div class="text-6xl mb-4">🗑️</div>
-                        <h3 class="text-xl font-bold text-gray-900 mb-4">ลบผู้ใช้?</h3>
-                        <p class="text-gray-600 mb-2">ต้องการลบบัญชี "<strong>${username}</strong>" หรือไม่?</p>
-                        <p class="text-red-600 text-sm mb-6">⚠️ การดำเนินการนี้ไม่สามารถยกเลิกได้</p>
-                        <div class="flex space-x-4">
-                            <button onclick="cancelDelete()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition duration-200">ยกเลิก</button>
-                            <button onclick="confirmDelete(${id})" class="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-200">ลบ</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-            
-            window.cancelDelete = () => modal.remove();
-            window.confirmDelete = (id) => {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.innerHTML = `
-                    <input type="hidden" name="action" value="delete">
-                    <input type="hidden" name="id" value="${id}">
-                `;
-                document.body.appendChild(form);
-                form.submit();
-            };
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('userModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
-
-        // Enhanced Username validation
-        document.getElementById('modalUsername').addEventListener('input', function() {
-            const username = this.value;
-            const isValid = /^[a-zA-Z0-9_]+$/.test(username) && username.length >= 3;
-            
-            this.classList.remove('border-red-500', 'border-green-500');
-            
-            if (username && !isValid) {
-                this.setCustomValidity('ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัวอักษร และใช้ได้เฉพาะ a-z, A-Z, 0-9, _');
-                this.classList.add('border-red-500');
-            } else if (username && isValid) {
-                this.setCustomValidity('');
-                this.classList.add('border-green-500');
-            } else {
-                this.setCustomValidity('');
-            }
-        });
-
-        // Enhanced Password validation
-        document.getElementById('modalPassword').addEventListener('input', function() {
-            const password = this.value;
-            const isEdit = document.getElementById('modalAction').value === 'edit';
-            
-            this.classList.remove('border-red-500', 'border-green-500');
-            
-            if (!isEdit && password.length > 0 && password.length < 6) {
-                this.setCustomValidity('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
-                this.classList.add('border-red-500');
-            } else if (isEdit && password.length > 0 && password.length < 6) {
-                this.setCustomValidity('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
-                this.classList.add('border-red-500');
-            } else if (password.length >= 6) {
-                this.setCustomValidity('');
-                this.classList.add('border-green-500');
-            } else {
-                this.setCustomValidity('');
-            }
-        });
-
-        // Enhanced Email validation
-        document.getElementById('modalEmail').addEventListener('input', function() {
-            const email = this.value;
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            
-            this.classList.remove('border-red-500', 'border-green-500');
-            
-            if (email && !emailRegex.test(email)) {
-                this.setCustomValidity('รูปแบบอีเมลไม่ถูกต้อง');
-                this.classList.add('border-red-500');
-            } else if (email && emailRegex.test(email)) {
-                this.setCustomValidity('');
-                this.classList.add('border-green-500');
-            } else {
-                this.setCustomValidity('');
-            }
-        });
-
-        // Phone number formatting and validation
-        document.getElementById('modalPhone').addEventListener('input', function() {
-            let value = this.value.replace(/\D/g, '');
-            
-            // Format phone number
-            if (value.length <= 10) {
-                if (value.length >= 3) {
-                    value = value.substring(0, 3) + '-' + value.substring(3);
-                }
-                if (value.length >= 7) {
-                    value = value.substring(0, 7) + '-' + value.substring(7, 11);
-                }
-                this.value = value;
-            }
-        });
-
-        // Enhanced form validation
-        document.getElementById('userForm').addEventListener('submit', function(e) {
-            const requiredFields = this.querySelectorAll('input[required], select[required]');
-            let isValid = true;
-            let firstInvalidField = null;
-            
-            requiredFields.forEach(field => {
-                if (!field.value.trim()) {
-                    field.classList.add('border-red-500', 'bg-red-50');
-                    isValid = false;
-                    if (!firstInvalidField) firstInvalidField = field;
-                } else {
-                    field.classList.remove('border-red-500', 'bg-red-50');
-                }
-            });
-            
-            if (!isValid) {
-                e.preventDefault();
-                
-                // Show error message
-                const alert = document.createElement('div');
-                alert.className = 'fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg shadow-lg z-50 fade-in';
-                alert.innerHTML = `
-                    <div class="flex items-center">
-                        <span class="text-2xl mr-3">❌</span>
-                        <span>กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน</span>
-                    </div>
-                `;
-                document.body.appendChild(alert);
-                
-                // Focus first invalid field
-                if (firstInvalidField) {
-                    firstInvalidField.focus();
-                }
-                
-                setTimeout(() => {
-                    alert.remove();
-                }, 5000);
-            }
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            // Ctrl + S to save form
-            if (e.ctrlKey && e.key === 's' && !document.getElementById('userModal').classList.contains('hidden')) {
-                e.preventDefault();
-                document.getElementById('userForm').submit();
-            }
-            
-            // Escape to close modal
-            if (e.key === 'Escape' && !document.getElementById('userModal').classList.contains('hidden')) {
-                closeModal();
-            }
-            
-            // Ctrl + N to add new user
-            if (e.ctrlKey && e.key === 'n') {
-                e.preventDefault();
-                openAddModal();
-            }
-        });
-
-        // Auto-hide messages with fade effect
-        setTimeout(function() {
-            const messages = document.querySelectorAll('.bg-green-50, .bg-red-50');
-            messages.forEach(message => {
-                message.style.transition = 'opacity 0.5s, transform 0.5s';
-                message.style.opacity = '0';
-                message.style.transform = 'translateY(-10px)';
-                setTimeout(() => {
-                    message.remove();
-                }, 500);
-            });
-        }, 5000);
-
-        // Add loading state to form submission
-        document.getElementById('userForm').addEventListener('submit', function() {
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            
-            submitBtn.innerHTML = '<span class="animate-spin mr-2">⏳</span> กำลังบันทึก...';
-            submitBtn.disabled = true;
-            submitBtn.classList.add('cursor-not-allowed', 'opacity-75');
-            
-            // Re-enable after 5 seconds as fallback
-            setTimeout(() => {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('cursor-not-allowed', 'opacity-75');
-            }, 5000);
-        });
-
-        // Initialize enhanced UI features
-        console.log('🎉 Enhanced Users Management UI loaded successfully!');
-    </script>
-</body>
-</html>><?php echo number_format(min($offset + $per_page, $total_users)); ?></span> จาก 
-                                <span class="font-medium"><?php echo number_format($total_users); ?></span> รายการ
-                            </p>    
+    <!-- Navigation -->
+    <nav class="bg-gradient-to-r from-indigo-600 to-purple-700 text-white shadow-

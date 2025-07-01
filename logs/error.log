@@ -73,3 +73,4 @@
 2025-07-01 14:01:52 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.visits' doesn't exist in E:\xampp\htdocs\main\admin\dashboard.php on line 117
 2025-07-01 14:04:12 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.visits' doesn't exist in E:\xampp\htdocs\main\admin\dashboard.php on line 117
 2025-07-01 16:30:29 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.visits' doesn't exist in E:\xampp\htdocs\main\admin\dashboard.php on line 117
+2025-07-01 23:37:10 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.departments' doesn't exist in I:\xampp\htdocs\main\index.php on line 58
