@@ -34,7 +34,6 @@
                         <li><a href="about.php" class="text-gray-300 hover:text-white transition duration-300">เกี่ยวกับเรา</a></li>
                         <li><a href="services.php" class="text-gray-300 hover:text-white transition duration-300">บริการ</a></li>
                         <li><a href="news.php" class="text-gray-300 hover:text-white transition duration-300">ข่าวสาร</a></li>
-                        <li><a href="appointment.php" class="text-gray-300 hover:text-white transition duration-300">นัดหมายแพทย์</a></li>
                         <li><a href="contact.php" class="text-gray-300 hover:text-white transition duration-300">ติดต่อเรา</a></li>
                     </ul>
                 </div>
@@ -92,7 +91,7 @@
             <div class="border-t border-gray-700 pt-8 mt-8">
                 <div class="flex flex-col md:flex-row justify-between items-center">
                     <div class="text-sm text-gray-400">
-                        <p>&copy; <?php echo date('Y'); ?> โรงพยาบาลทุ่งหัวช้าง จังหวัดลำพูน. สงวนสิทธิ์ทุกประการ.</p>
+                        <p>&copy; <?php echo date('Y'); ?> โรงพยาบาลทุ่งหัวช้าง จังหวัดลำพูน. สงวนสิทธิ์ทุกประการ. Powered by Fz</p>
                     </div>
                     <div class="flex space-x-6 mt-4 md:mt-0 text-sm">
                         <a href="privacy.php" class="text-gray-400 hover:text-white transition duration-300">นโยบายความเป็นส่วนตัว</a>
