@@ -1,0 +1,48 @@
+# Prevent execution of PHP files in upload directory
+<Files "*.php">
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files "*.php3">
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files "*.php4">
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files "*.php5">
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+<Files "*.phtml">
+    Order Deny,Allow
+    Deny from all
+</Files>
+
+# Only allow PDF files
+<FilesMatch "\.(pdf)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Deny all other file types
+<FilesMatch "\.(?!(pdf)$)[^.]+$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Set proper MIME type for PDF
+AddType application/pdf .pdf
+
+# Prevent directory browsing
+Options -Indexes
+
+# Add security headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"

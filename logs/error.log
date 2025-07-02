@@ -325,3 +325,4 @@
 2025-07-02 11:11:12 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
 2025-07-02 11:11:12 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
 2025-07-02 11:11:12 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.ita_requests' doesn't exist
+2025-07-02 12:01:50 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'attachment_url' in 'field list' in E:\xampp\htdocs\main\admin\ita.php on line 346

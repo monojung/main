@@ -52,6 +52,8 @@ try {
         description TEXT,
         progress INT DEFAULT 0,
         status ENUM('pending', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending',
+        attachment_url VARCHAR(255),
+        attachment_name VARCHAR(255),
         sort_order INT DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -182,11 +184,39 @@ if ($_POST && $action) {
                 $status = sanitizeInput($_POST['status'] ?? 'pending');
                 $sort_order = (int)($_POST['sort_order'] ?? 0);
                 
+                // Handle file upload
+                $attachment_url = null;
+                $attachment_name = null;
+                
+                if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                    $uploadDir = '../uploads/ita/';
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+                    
+                    $fileName = $_FILES['attachment']['name'];
+                    $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                    
+                    // Allow only PDF files
+                    if ($fileExtension === 'pdf') {
+                        $newFileName = uniqid() . '_' . time() . '.pdf';
+                        $uploadPath = $uploadDir . $newFileName;
+                        
+                        if (move_uploaded_file($_FILES['attachment']['tmp_name'], $uploadPath)) {
+                            $attachment_url = $newFileName;
+                            $attachment_name = $fileName;
+                        }
+                    } else {
+                        $error = "กรุณาอัปโหลดไฟล์ PDF เท่านั้น";
+                        break;
+                    }
+                }
+                
                 if (!$item_id || empty($title)) {
                     $error = "กรุณากรอกข้อมูลที่จำเป็น";
                 } else {
-                    $stmt = $conn->prepare("INSERT INTO ita_sub_items (item_id, title, description, progress, status, sort_order) VALUES (?, ?, ?, ?, ?, ?)");
-                    if ($stmt->execute([$item_id, $title, $description, $progress, $status, $sort_order])) {
+                    $stmt = $conn->prepare("INSERT INTO ita_sub_items (item_id, title, description, progress, status, attachment_url, attachment_name, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                    if ($stmt->execute([$item_id, $title, $description, $progress, $status, $attachment_url, $attachment_name, $sort_order])) {
                         $message = "เพิ่มหัวข้อย่อยเรียบร้อยแล้ว";
                         $action = '';
                     } else {
@@ -203,11 +233,44 @@ if ($_POST && $action) {
                 $status = sanitizeInput($_POST['status'] ?? 'pending');
                 $sort_order = (int)($_POST['sort_order'] ?? 0);
                 
+                // Handle file upload
+                $attachment_url = $_POST['current_attachment_url'] ?? null;
+                $attachment_name = $_POST['current_attachment_name'] ?? null;
+                
+                if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                    $uploadDir = '../uploads/ita/';
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+                    
+                    $fileName = $_FILES['attachment']['name'];
+                    $fileExtension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                    
+                    // Allow only PDF files
+                    if ($fileExtension === 'pdf') {
+                        // Delete old file if exists
+                        if ($attachment_url && file_exists($uploadDir . $attachment_url)) {
+                            unlink($uploadDir . $attachment_url);
+                        }
+                        
+                        $newFileName = uniqid() . '_' . time() . '.pdf';
+                        $uploadPath = $uploadDir . $newFileName;
+                        
+                        if (move_uploaded_file($_FILES['attachment']['tmp_name'], $uploadPath)) {
+                            $attachment_url = $newFileName;
+                            $attachment_name = $fileName;
+                        }
+                    } else {
+                        $error = "กรุณาอัปโหลดไฟล์ PDF เท่านั้น";
+                        break;
+                    }
+                }
+                
                 if (!$id || empty($title)) {
                     $error = "ข้อมูลไม่ถูกต้อง";
                 } else {
-                    $stmt = $conn->prepare("UPDATE ita_sub_items SET title = ?, description = ?, progress = ?, status = ?, sort_order = ? WHERE id = ?");
-                    if ($stmt->execute([$title, $description, $progress, $status, $sort_order, $id])) {
+                    $stmt = $conn->prepare("UPDATE ita_sub_items SET title = ?, description = ?, progress = ?, status = ?, attachment_url = ?, attachment_name = ?, sort_order = ? WHERE id = ?");
+                    if ($stmt->execute([$title, $description, $progress, $status, $attachment_url, $attachment_name, $sort_order, $id])) {
                         $message = "แก้ไขหัวข้อย่อยเรียบร้อยแล้ว";
                         $action = '';
                     } else {
@@ -787,10 +850,12 @@ try {
 
             <?php elseif (in_array($action, ['add_sub_item', 'edit_sub_item'])): ?>
             <!-- Sub Item Form -->
-            <form method="POST" class="space-y-6">
+            <form method="POST" enctype="multipart/form-data" class="space-y-6">
                 <input type="hidden" name="action" value="<?php echo $action; ?>">
                 <?php if ($edit_sub_item): ?>
                 <input type="hidden" name="id" value="<?php echo $edit_sub_item['id']; ?>">
+                <input type="hidden" name="current_attachment_url" value="<?php echo htmlspecialchars($edit_sub_item['attachment_url'] ?? ''); ?>">
+                <input type="hidden" name="current_attachment_name" value="<?php echo htmlspecialchars($edit_sub_item['attachment_name'] ?? ''); ?>">
                 <?php else: ?>
                 <input type="hidden" name="item_id" value="<?php echo $_GET['item_id'] ?? ''; ?>">
                 <?php endif; ?>
@@ -823,6 +888,28 @@ try {
                         <textarea name="description" rows="4" 
                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                   placeholder="อธิบายรายละเอียดของหัวข้อย่อย"><?php echo htmlspecialchars($edit_sub_item['description'] ?? ''); ?></textarea>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">📎 ไฟล์แนบ (PDF เท่านั้น)</label>
+                        <input type="file" name="attachment" accept=".pdf" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <?php if ($edit_sub_item && $edit_sub_item['attachment_url']): ?>
+                        <div class="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <span class="text-yellow-600 mr-2">📄</span>
+                                    <span class="text-sm text-gray-700">ไฟล์ปัจจุบัน: <?php echo htmlspecialchars($edit_sub_item['attachment_name'] ?: 'document.pdf'); ?></span>
+                                </div>
+                                <a href="../uploads/ita/<?php echo htmlspecialchars($edit_sub_item['attachment_url']); ?>" 
+                                   target="_blank" 
+                                   class="text-blue-600 hover:text-blue-800 text-sm">
+                                    👁️ ดูไฟล์
+                                </a>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">หากต้องการเปลี่ยนไฟล์ ให้เลือกไฟล์ใหม่</p>
+                        </div>
+                        <?php endif; ?>
                     </div>
                     
                     <div>
@@ -909,6 +996,33 @@ try {
             }
         }
 
+        // File upload preview
+        function previewFile(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const fileName = file.name;
+                const fileSize = (file.size / 1024 / 1024).toFixed(2); // MB
+                
+                // Create preview element
+                let preview = input.parentNode.querySelector('.file-preview');
+                if (!preview) {
+                    preview = document.createElement('div');
+                    preview.className = 'file-preview mt-2 p-3 bg-green-50 border border-green-200 rounded-lg';
+                    input.parentNode.appendChild(preview);
+                }
+                
+                preview.innerHTML = `
+                    <div class="flex items-center">
+                        <span class="text-green-600 mr-2">📄</span>
+                        <div>
+                            <div class="text-sm text-gray-700">${fileName}</div>
+                            <div class="text-xs text-gray-500">${fileSize} MB</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
         // Form validation
         document.addEventListener('DOMContentLoaded', function() {
             const forms = document.querySelectorAll('form[method="POST"]');
@@ -926,6 +1040,17 @@ try {
                         }
                     });
                     
+                    // Check file size if file is selected
+                    const fileInput = form.querySelector('input[type="file"]');
+                    if (fileInput && fileInput.files[0]) {
+                        const fileSize = fileInput.files[0].size / 1024 / 1024; // MB
+                        if (fileSize > 10) { // 10MB limit
+                            e.preventDefault();
+                            alert('ไฟล์มีขนาดใหญ่เกินไป กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 10MB');
+                            return false;
+                        }
+                    }
+                    
                     if (hasError) {
                         e.preventDefault();
                         alert('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
@@ -939,12 +1064,20 @@ try {
                         submitBtn.innerHTML = '<span class="animate-spin mr-2">⏳</span>กำลังบันทึก...';
                         submitBtn.disabled = true;
                         
-                        // Re-enable after 10 seconds as fallback
+                        // Re-enable after 30 seconds as fallback for file upload
                         setTimeout(() => {
                             submitBtn.innerHTML = originalText;
                             submitBtn.disabled = false;
-                        }, 10000);
+                        }, 30000);
                     }
+                });
+            });
+
+            // File input change event
+            const fileInputs = document.querySelectorAll('input[type="file"]');
+            fileInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    previewFile(this);
                 });
             });
 
@@ -971,7 +1104,7 @@ try {
             });
         });
 
-        console.log('🔧 ITA Management system loaded successfully!');
+        console.log('🔧 ITA Management system with file upload loaded successfully!');
     </script>
 </body>
 </html>
