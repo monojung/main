@@ -1,9 +1,87 @@
+<?php
+require_once 'config/database.php';
+
+// Get database connection
+$db = new Database();
+$conn = $db->getConnection();
+
+// Fetch ITA categories and items
+try {
+    // Get categories with their items and sub-items
+    $stmt = $conn->prepare("
+        SELECT 
+            c.*,
+            COUNT(i.id) as total_items,
+            AVG(CASE WHEN i.status = 'completed' THEN 100 ELSE i.progress END) as avg_progress
+        FROM ita_categories c
+        LEFT JOIN ita_items i ON c.id = i.category_id
+        WHERE c.is_active = 1
+        GROUP BY c.id
+        ORDER BY c.sort_order, c.id
+    ");
+    $stmt->execute();
+    $categories = $stmt->fetchAll();
+
+    // Get all items with their sub-items
+    $stmt = $conn->prepare("
+        SELECT 
+            i.*,
+            c.name as category_name,
+            c.color as category_color,
+            (SELECT COUNT(*) FROM ita_sub_items si WHERE si.item_id = i.id) as sub_items_count,
+            (SELECT COUNT(*) FROM ita_sub_items si WHERE si.item_id = i.id AND si.status = 'completed') as completed_sub_items
+        FROM ita_items i
+        JOIN ita_categories c ON i.category_id = c.id
+        WHERE i.is_active = 1 AND c.is_active = 1
+        ORDER BY c.sort_order, i.sort_order, i.id
+    ");
+    $stmt->execute();
+    $items = $stmt->fetchAll();
+
+    // Calculate overall statistics
+    $totalItems = count($items);
+    $completedItems = 0;
+    $totalProgress = 0;
+
+    foreach ($items as $item) {
+        if ($item['sub_items_count'] > 0) {
+            // Calculate progress based on sub-items
+            $item['calculated_progress'] = $item['sub_items_count'] > 0 ? 
+                round(($item['completed_sub_items'] / $item['sub_items_count']) * 100) : 0;
+        } else {
+            // Use manual progress
+            $item['calculated_progress'] = $item['progress'];
+        }
+        
+        if ($item['calculated_progress'] >= 70) {
+            $completedItems++;
+        }
+        $totalProgress += $item['calculated_progress'];
+    }
+
+    $overallScore = $totalItems > 0 ? round($totalProgress / $totalItems) : 0;
+
+} catch (Exception $e) {
+    $categories = [];
+    $items = [];
+    $totalItems = 0;
+    $completedItems = 0;
+    $overallScore = 0;
+}
+
+// Calculate days left (assuming fiscal year ends September 30)
+$fiscalYearEnd = new DateTime('2025-09-30');
+$today = new DateTime();
+$daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
+?>
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบประเมิน ITA - มาตรฐานความโปร่งใส MOIT</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -153,12 +231,12 @@
             color: #7f8c8d;
         }
 
-        .requirements-list {
+        .sub-items-list {
             list-style: none;
             margin-top: 15px;
         }
 
-        .requirements-list li {
+        .sub-items-list li {
             padding: 8px 0;
             border-bottom: 1px solid #ecf0f1;
             font-size: 0.9rem;
@@ -167,7 +245,7 @@
             align-items: center;
         }
 
-        .requirements-list li:last-child {
+        .sub-items-list li:last-child {
             border-bottom: none;
         }
 
@@ -315,9 +393,32 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        .admin-link {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .admin-link:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
+    <a href="admin/ita.php" class="admin-link">🔧 จัดการระบบ</a>
+    
     <div class="container">
         <div class="header fade-in">
             <h1>ระบบประเมิน ITA</h1>
@@ -326,56 +427,99 @@
             
             <div class="stats-bar">
                 <div class="stat-item">
-                    <span class="stat-number" id="totalItems">22</span>
+                    <span class="stat-number"><?php echo $totalItems; ?></span>
                     <span class="stat-label">รายการทั้งหมด</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number" id="completedItems">14</span>
+                    <span class="stat-number"><?php echo $completedItems; ?></span>
                     <span class="stat-label">ดำเนินการแล้ว</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number" id="overallScore">64%</span>
+                    <span class="stat-number"><?php echo $overallScore; ?>%</span>
                     <span class="stat-label">คะแนนรวม</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number" id="daysLeft">45</span>
+                    <span class="stat-number"><?php echo $daysLeft; ?></span>
                     <span class="stat-label">วันที่เหลือ</span>
                 </div>
             </div>
         </div>
 
         <div class="assessment-grid" id="moitGrid">
-            <!-- MOIT items will be dynamically generated here -->
+            <?php foreach ($items as $index => $item): ?>
+            <?php
+                // Calculate item progress
+                if ($item['sub_items_count'] > 0) {
+                    $itemProgress = round(($item['completed_sub_items'] / $item['sub_items_count']) * 100);
+                } else {
+                    $itemProgress = $item['progress'];
+                }
+                
+                // Get sub-items for this item
+                $stmt = $conn->prepare("
+                    SELECT * FROM ita_sub_items 
+                    WHERE item_id = ? AND is_active = 1 
+                    ORDER BY sort_order, id
+                ");
+                $stmt->execute([$item['id']]);
+                $subItems = $stmt->fetchAll();
+            ?>
+            <div class="moit-card fade-in" style="animation-delay: <?php echo $index * 0.1; ?>s">
+                <div class="moit-header">
+                    <div class="moit-number"><?php echo $item['moit_number']; ?></div>
+                    <div class="moit-title"><?php echo htmlspecialchars($item['title']); ?></div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: <?php echo $itemProgress; ?>%"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span>ความคืบหน้า</span>
+                        <span><strong><?php echo $itemProgress; ?>%</strong></span>
+                    </div>
+                </div>
+                
+                <?php if (!empty($item['description'])): ?>
+                <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 8px; font-size: 0.9rem; color: #6c757d;">
+                    <?php echo nl2br(htmlspecialchars($item['description'])); ?>
+                </div>
+                <?php endif; ?>
+                
+                <?php if (!empty($subItems)): ?>
+                <ul class="sub-items-list">
+                    <?php foreach ($subItems as $subItem): ?>
+                    <li>
+                        <span class="check-icon <?php echo $subItem['status'] === 'completed' ? '' : 'incomplete'; ?>">✓</span>
+                        <?php echo htmlspecialchars($subItem['title']); ?>
+                        <?php if ($subItem['progress'] > 0 && $subItem['status'] !== 'completed'): ?>
+                        <span style="margin-left: auto; font-size: 0.8rem; color: #666;">
+                            (<?php echo $subItem['progress']; ?>%)
+                        </span>
+                        <?php endif; ?>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php endif; ?>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="viewDetails(<?php echo $item['id']; ?>)">ดูรายละเอียด</button>
+                    <button class="btn btn-secondary" onclick="viewSubItems(<?php echo $item['id']; ?>)">รายการย่อย</button>
+                </div>
+            </div>
+            <?php endforeach; ?>
         </div>
 
         <div class="summary-section fade-in">
             <h2 class="summary-title">สรุปผลการประเมินตามหมวดหมู่</h2>
             
             <div class="category-grid">
-                <div class="category-item">
-                    <span class="category-score">75%</span>
-                    <span class="category-name">การเปิดเผยข้อมูล</span>
+                <?php foreach ($categories as $category): ?>
+                <div class="category-item" style="background: linear-gradient(45deg, <?php echo $category['color']; ?>, <?php echo $category['color']; ?>cc);">
+                    <span class="category-score"><?php echo round($category['avg_progress']); ?>%</span>
+                    <span class="category-name"><?php echo htmlspecialchars($category['name']); ?></span>
                 </div>
-                <div class="category-item">
-                    <span class="category-score">68%</span>
-                    <span class="category-name">การจัดซื้อจัดจ้าง</span>
-                </div>
-                <div class="category-item">
-                    <span class="category-score">58%</span>
-                    <span class="category-name">การบริหารบุคคล</span>
-                </div>
-                <div class="category-item">
-                    <span class="category-score">72%</span>
-                    <span class="category-name">การต่อต้านทุจริต</span>
-                </div>
-                <div class="category-item">
-                    <span class="category-score">45%</span>
-                    <span class="category-name">การมีส่วนร่วม</span>
-                </div>
-                <div class="category-item">
-                    <span class="category-score">82%</span>
-                    <span class="category-name">สิทธิมนุษยชน</span>
-                </div>
+                <?php endforeach; ?>
             </div>
 
             <div class="export-section">
@@ -386,306 +530,14 @@
     </div>
 
     <script>
-        const moitData = [
-            {
-                number: 1,
-                title: "MOIT 1 : หน่วยงานมีการวางระบบโดยการกำหนดมาตรการการเผยแพร่ข้อมูลต่อสาธารณะผ่านเว็บไซต์ของ หน่วยงาน",
-                progress: 100,
-                requirements: [
-                    "คำสั่ง / ประกาศ ที่ระบุกรอบแนวทาง",
-                    "รายงานผลการกำกับติดตามการเผยแพร่ข้อมูลต่อสาธารณะผ่านเว็บไซต์ของหน่วยงาน ในปีที่ผ่านมา (ของปีงบประมาณ พ.ศ. 2567)"
-                ],
-                category: "transparency"
-            },
-            {
-                number: 2,
-                title: "MOIT 2 : หน่วยงานมีการเปิดเผยข้อมูลข่าวสารที่เป็นปัจจุบันและเป็นข้อมูลที่จำเป็นต่อการปฏิบัติงานของหน่วยงาน ตามกรอบแนวทางการเปิดเผยข้อมูลข่าวสารของหน่วยงาน",
-                progress: 100,
-                requirements: [
-                    "ข้อมูลพื้นฐานที่เป็นปัจจุบัน ประกอบด้วย",
-                    "วิสัยทัศน์ พันธกิจ ค่านิยม MOPH",
-                    "พระราชบัญญัติมาตรฐานทางจริยธรรม พ.ศ. 2562",
-                    "ประมวลจริยธรรมข้าราชการพลเรือน พ.ศ. 2564",
-                    "ข้อกำหนดจริยธรรมเจ้าหน้าที่ของรัฐสำนักงานปลัดกระทรวงสาธารณสุข พ.ศ. 2564",
-                    "ยุทธศาสตร์และแผนระดับชาติ จำนวน 3 ระดับ ประกอบด้วย",
-                    
-                ],
-                category: "transparency"
-            },
-            {
-                number: 3,
-                title: "MOIT 3 : หน่วยงานมีรายงานการวิเคราะห์ผลการจัดซื้อจัดจ้างและการจัดหาพัสดุ ของปีงบประมาณ พ.ศ. 2568",
-                progress: 100,
-                requirements: [
-                    "รายงานวิเคราะห์ปี 2567",
-                    "เตรียมรายงานปี 2568"
-                ],
-                category: "procurement"
-            },
-            {
-                number: 4,
-                title: "MOIT 4 : หน่วยงานมีการวางระบบการจัดซื้อจัดจ้างและการจัดหาพัสดุ ประจำปีงบประมาณ พ.ศ. 2568",
-                progress: 65,
-                requirements: [
-                    "ประกาศแผนจัดซื้อจัดจ้าง",
-                    "รายงานผลรายไตรมาส",
-                    "มาตรการป้องกันผลประโยชน์ทับซ้อน"
-                ],
-                category: "procurement"
-            },
-            {
-                number: 5,
-                title: "MOIT 5 : หน่วยงานมีการสรุปผลการจัดซื้อจัดจ้างและการจัดหาพัสดุรายเดือน ประจำปีงบประมาณ พ.ศ. 2568",
-                progress: 45,
-                requirements: [
-                    "ไตรมาส 1 แสดงแบบ สขร. 1 เดือนตุลาคม 2567-ธันวาคม 2567",
-                    "เดือน ตุลาคม 2567",
-                    "เดือน พฤศจิกายน 2567",
-                    "เดือน ธันวาคม 2567",
-                    "ไตรมาส 2 แสดงแบบ สขร. 1 เดือนมกราคม 2568-มีนาคม 2568",
-                    "เดือน มกราคม 2568",
-                    "เดือน กุมภาพันธ์ 2568",
-                    "เดือน มีนาคม 2568",
-        "- ไตรมาส 3 แสดงแบบ สขร. 1 เดือนเมษายน 2568-มิถุนายน 2568",
-     "เดือน เมษายน 2568",
-     "เดือน พฤษภาคม 2568",
-    "เดือน มิถุนายน 2568",
-    "- ไตรมาส 4 แสดงแบบ สขร. 1 เดือนกรกฎาคม 2568-กันยายน 2568",
-    "เดือน กรกฎาคม 2568",
-    "เดือน สิงหาคม 2568",
-    "เดือน กันยายน 2568"
-                ],
-                category: "procurement"
-            },
-            {
-                number: 6,
-                title: "MOIT 6 : ผู้บริหารแสดงนโยบายการบริหารและพัฒนาทรัพยากรบุคคล",
-                progress: 88,
-                requirements: [
-                    "นโยบายบริหารทรัพยากรบุคคล",
-                    "แผนการบริหารทรัพยากรบุคคล"
-                ],
-                category: "hr"
-            },
-            {
-                number: 7,
-                title: "MOIT 7 : หน่วยงานมีการรายงานการประเมินและเกี่ยวกับการประเมินผลการปฏิบัติราชการ ของบุคลากรในหน่วยงาน และเปิดเผยผลการปฏิบัติราชการ ระดับดีเด่น และระดับดีมาก ในที่เปิดเผยให้ทราบปีงบประมาณ พ.ศ. 2567 และปีงบประมาณ พ.ศ. 2568",
-                progress: 52,
-                requirements: [
-                    "รายงานประเมินผลรอบ 2 ปี 2567",
-                    "รายงานประเมินผลรอบ 1 ปี 2568"
-                ],
-                category: "hr"
-            },
-            {
-                number: 8,
-                title: "MOIT 8 : หน่วยงานมีการอบรมให้ความรู้แก่เจ้าหน้าที่ภายในหน่วยงานเกี่ยวกับการเสริมสร้าง และพัฒนาทางด้านจริยธรรม และการรักษาวินัย รวมทั้งการป้องกันมิให้กระทำผิดวินัย (0) ปีงบประมาณ พ.ศ. 2568",
-                progress: 35,
-                requirements: [
-                    "หลักสูตรอบรมด้านจริยธรรม ปี 2568"
-                ],
-                category: "hr"
-            },
-            {
-                number: 9,
-                title: "MOIT 9 : หน่วยงานมีแนวปฏิบัติการจัดการเรื่องร้องเรียน และช่องทางการร้องเรียน",
-                progress: 95,
-                requirements: [
-                    "คู่มือปฏิบัติการการดำเนินงานเรื่องร้องเรียนการปฏิบัติงานหรือการให้บริการ ของเจ้าหน้าที่ภายในหน่วยงาน ที่มีแบบฟอร์มการเผยแพร่ข้อมูลต่อสาธารณะผ่านเว็บไซต์ ของหน่วยงาน",
-                    "คู่มือปฏิบัติการการดำเนินงานเรื่องร้องเรียนการทุจริตและประพฤติมิชอบ",
-                    "ช่องทางการร้องเรียน ตามข้อ 1. และข้อ 2. อาทิ ผ่านระบบ หมายเลขโทรศัพท์ ผ่านระบบอินเตอร์เน็ต ผ่านระบบไปรษณีย์ ผ่าน Application หรือช่องทางอื่น ๆ ที่หน่วยงานกำหนดตามความเหมาะสม"
-                ],
-                category: "complaints"
-            },
-            {
-                number: 10,
-                title: "MOIT 10 : หน่วยงานมีสรุปผลการดำเนินงานเรื่องร้องเรียนการปฏิบัติงานหรือการให้บริการ ของเจ้าหน้าที่ภายในหน่วยงาน และเรื่องร้องเรียนการทุจริตและประพฤติมิชอบ",
-                progress: 68,
-                requirements: [
-                    "ไตรมาสที่ 2 (สรุปผลการดำเนินงานฯ รอบ 6 เดือน 1 ตุลาคม 2567-31 มีนาคม 2568)",
-                    "ไตรมาสที่ 4 (สรุปผลการดำเนินงานฯ รอบ 12 เดือน 1 ตุลาคม 2567-31 สิงหาคม 2568)"
-                ],
-                category: "complaints"
-            },
-            {
-                number: 11,
-                title: "MOIT 11 : หน่วยงานของท่านเปิดโอกาสให้ผู้มีส่วนได้ส่วนเสียมีโอกาสเข้ามามีส่วนร่วมในการดำเนินงาน ตามภารกิจของหน่วยงาน",
-                progress: 45,
-                requirements: [
-                    "หลักฐานโครงการ / กิจกรรมที่ดำเนินการ ตั้งแต่วันที่ 1 ตุลาคม 2567 ถึงวันที่ 31 สิงหาคม 2568",
-                    "หลักฐานโครงการ / กิจกรรมที่แสดงให้เห็นถึงกระบวนการมีส่วนร่วม ตั้งแต่ (1) กระบวนการ มีส่วนร่วมในการวางแผน (2) กระบวนการมีส่วนร่วมในการดำเนินการ และ (3) กระบวนการมีส่วนร่วม ในการติดตามประเมินผล",
-                    "หลักฐานแสดงถึงการมีส่วนร่วมตามกระบวนการในข้อ 2. โดยจะต้องระบุรายละเอียด ของผู้มีส่วนได้ส่วนเสียที่เข้ามาร่วมในการดำเนินการในแต่ละขั้นตอนด้วย",
-                    "ภาพกิจกรรม ต้องระบุวัน เวลา และสถานที่จัดกิจกรรมการประชุม / สัมมนา",
-                    "ผู้บังคับบัญชา จะต้องสั่งการหรืออนุญาตให้นำรายละเอียดการดำเนินงานไปเผยแพร่ ผ่านเว็บไซต์ของหน่วยงาน และมีแบบฟอร์มการเผยแพร่ข้อมูลต่อสาธารณะผ่านเว็บไซต์ของหน่วยงาน หรือสื่อสารเผยแพร่ในช่องทางอื่น"
-                ],
-                category: "participation"
-            },
-            {
-                number: 12,
-                title: "MOIT 12 : หน่วยงานมีมาตรการ “การป้องกันการรับสินบน” ที่เป็นระบบ",
-                progress: 82,
-                requirements: [
-                    "ประกาศ No Gift Policy",
-                    "มาตรการป้องกันในกระบวนการต่างๆ"
-                ],
-                category: "anticorruption"
-            },
-            {
-                number: 13,
-                title: "ประเมินเกณฑ์จริยธรรมการจัดซื้อยาและเวชภัณฑ์",
-                progress: 0,
-                requirements: [
-                    "รายงานการประเมินตามเกณฑ์ จ.ศ. 2564",
-                    "ดำเนินการให้เสร็จในไตรมาส 4"
-                ],
-                category: "anticorruption"
-            },
-            {
-                number: 14,
-                title: "แนวทางการใช้ทรัพย์สินของราชการ",
-                progress: 75,
-                requirements: [
-                    "แนวทางปฏิบัติการใช้ทรัพย์สิน",
-                    "ขั้นตอนการขออนุญาตยืม"
-                ],
-                category: "assets"
-            },
-            {
-                number: 15,
-                title: "แผนปฏิบัติการป้องกันทุจริตและส่งเสริมคุณธรรม",
-                progress: 90,
-                requirements: [
-                    "แผนป้องกันทุจริต ปี 2568",
-                    "แผนส่งเสริมคุณธรรมชมรมจริยธรรม"
-                ],
-                category: "anticorruption"
-            },
-            {
-                number: 16,
-                title: "รายงานผลการดำเนินงานตามแผนป้องกันทุจริต",
-                progress: 55,
-                requirements: [
-                    "รายงานผลรอบ 6 เดือน",
-                    "รายงานผลรอบ 12 เดือน"
-                ],
-                category: "anticorruption"
-            },
-            {
-                number: 17,
-                title: "การประเมินความเสี่ยงการทุจริต",
-                progress: 72,
-                requirements: [
-                    "การประชุมจัดทำแผนบริหารความเสี่ยง",
-                    "รายงานแผนบริหารความเสี่ยง ปี 2568"
-                ],
-                category: "risk"
-            },
-            {
-                number: 18,
-                title: "การปฏิบัติตามมาตรการป้องกันการทุจริต",
-                progress: 88,
-                requirements: [
-                    "การนำมาตรการป้องกันมาใช้"
-                ],
-                category: "anticorruption"
-            },
-            {
-                number: 19,
-                title: "รายงานการส่งเสริมการปฏิบัติตามประมวลจริยธรรม",
-                progress: 42,
-                requirements: [
-                    "รายงานการเรี่ยไรรอบ 6 เดือน",
-                    "รายงานการเรี่ยไรรอบ 12 เดือน"
-                ],
-                category: "ethics"
-            },
-            {
-                number: 20,
-                title: "การอบรมเรื่องผลประโยชน์ทับซ้อน",
-                progress: 78,
-                requirements: [
-                    "หลักสูตรต้านทุจริตศึกษา",
-                    "ประมวลผลภาพกิจกรรม"
-                ],
-                category: "training"
-            },
-            {
-                number: 21,
-                title: "การเผยแพร่เจตจำนงสุจริตและสิทธิมนุษยชน",
-                progress: 95,
-                requirements: [
-                    "เจตนารมณ์ป้องกันทุจริต",
-                    "เจตนารมณ์ป้องกันการล่วงละเมิดทางเพศ"
-                ],
-                category: "humanrights"
-            },
-            {
-                number: 22,
-                title: "MOIT 22 : หน่วยงานมีแนวปฏิบัติที่เคารพสิทธิมนุษยชนและศักดิ์ศรีของผู้ปฏิบัติงาน และรายงาน การป้องกันและแก้ไขปัญหาการล่วงละเมิดหรือคุกคามทางเพศในการทำงาน ประจำปีงบประมาณ พ.ศ. 2568",
-                progress: 68,
-                requirements: [
-                    "คู่มือแนวทางปฏิบัติการป้องกันและแก้ไขปัญหาการล่วงละเมิดหรือคุกคามทางเพศในการทำงานของหน่วยงาน",
-                    "รายงานผลการดำเนินงานตามมาตรการป้องกันและแก้ไขปัญหาการล่วงละเมิดทางเพศ ประจำปี 2568"
-                ],
-                category: "humanrights"
-            }
-        ];
-
-        function renderMOITCards() {
-            const grid = document.getElementById('moitGrid');
-            grid.innerHTML = '';
-            
-            moitData.forEach((item, index) => {
-                const card = document.createElement('div');
-                card.className = 'moit-card fade-in';
-                card.style.animationDelay = `${index * 0.1}s`;
-                
-                const requirementsList = item.requirements.map(req => 
-                    `<li><span class="check-icon ${item.progress > 70 ? '' : 'incomplete'}">✓</span>${req}</li>`
-                ).join('');
-                
-                card.innerHTML = `
-                    <div class="moit-header">
-                        <div class="moit-number">${item.number}</div>
-                        <div class="moit-title">${item.title}</div>
-                    </div>
-                    
-                    <div class="progress-container">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${item.progress}%"></div>
-                        </div>
-                        <div class="progress-text">
-                            <span>ความคืบหน้า</span>
-                            <span><strong>${item.progress}%</strong></span>
-                        </div>
-                    </div>
-                    
-                    <ul class="requirements-list">
-                        ${requirementsList}
-                    </ul>
-                    
-                    <div class="action-buttons">
-                        <button class="btn btn-primary" onclick="viewDetails(${item.number})">ดูรายละเอียด</button>
-                        <button class="btn btn-secondary" onclick="updateProgress(${item.number})">อัปเดต</button>
-                    </div>
-                `;
-                
-                grid.appendChild(card);
-            });
+        function viewDetails(itemId) {
+            // You can implement a modal or redirect to detail page
+            alert(`กำลังเปิดรายละเอียด item ID: ${itemId}`);
         }
 
-        function viewDetails(moitNumber) {
-            alert(`กำลังเปิดรายละเอียด MOIT ${moitNumber}`);
-        }
-
-        function updateProgress(moitNumber) {
-            const card = event.target.closest('.moit-card');
-            card.classList.add('loading');
-            
-            setTimeout(() => {
-                card.classList.remove('loading');
-                alert(`อัปเดต MOIT ${moitNumber} เรียบร้อยแล้ว`);
-            }, 1500);
+        function viewSubItems(itemId) {
+            // You can implement a modal showing sub-items
+            alert(`กำลังแสดงรายการย่อยของ item ID: ${itemId}`);
         }
 
         function generateReport() {
@@ -693,34 +545,11 @@
         }
 
         function exportData() {
-            const data = {
-                timestamp: new Date().toISOString(),
-                totalItems: moitData.length,
-                completedItems: moitData.filter(item => item.progress >= 70).length,
-                overallScore: Math.round(moitData.reduce((sum, item) => sum + item.progress, 0) / moitData.length),
-                details: moitData
-            };
-            
-            const dataStr = JSON.stringify(data, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `MOIT_Assessment_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
+            window.location.href = 'export.php?type=json';
         }
 
         // Initialize the dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            renderMOITCards();
-            
-            // Update stats
-            const completedItems = moitData.filter(item => item.progress >= 70).length;
-            const overallScore = Math.round(moitData.reduce((sum, item) => sum + item.progress, 0) / moitData.length);
-            
-            document.getElementById('completedItems').textContent = completedItems;
-            document.getElementById('overallScore').textContent = overallScore + '%';
-            
             // Animate progress bars
             setTimeout(() => {
                 const progressBars = document.querySelectorAll('.progress-fill');
