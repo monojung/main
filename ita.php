@@ -414,6 +414,89 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
             color: white;
             transform: translateY(-2px);
         }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .download-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .sub-item-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+
+        .sub-item-card:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .file-attachment {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -504,7 +587,7 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
                 
                 <div class="action-buttons">
                     <button class="btn btn-primary" onclick="viewDetails(<?php echo $item['id']; ?>)">ดูรายละเอียด</button>
-                    <button class="btn btn-secondary" onclick="viewSubItems(<?php echo $item['id']; ?>)">รายการย่อย</button>
+                    <button class="btn btn-secondary" onclick="viewSubItems(<?php echo $item['id']; ?>)">รายการย่อย (<?php echo count($subItems); ?>)</button>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -529,23 +612,161 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
         </div>
     </div>
 
+    <!-- Modal for Item Details -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modalContent">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
     <script>
         function viewDetails(itemId) {
-            // You can implement a modal or redirect to detail page
-            alert(`กำลังเปิดรายละเอียด item ID: ${itemId}`);
+            // Show loading
+            document.getElementById('modalContent').innerHTML = '<div class="text-center py-8"><div class="text-4xl mb-4">⏳</div><p>กำลังโหลดข้อมูล...</p></div>';
+            document.getElementById('detailModal').style.display = 'block';
+            
+            // Fetch item details
+            fetch(`get_item_details.php?id=${itemId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayItemDetails(data.item, data.subItems);
+                    } else {
+                        document.getElementById('modalContent').innerHTML = '<div class="text-center py-8"><div class="text-4xl mb-4">❌</div><p>ไม่สามารถโหลดข้อมูลได้</p></div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('modalContent').innerHTML = '<div class="text-center py-8"><div class="text-4xl mb-4">❌</div><p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p></div>';
+                });
+        }
+
+        function displayItemDetails(item, subItems) {
+            let subItemsHtml = '';
+            if (subItems && subItems.length > 0) {
+                subItemsHtml = `
+                    <div class="mt-6">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4">📝 รายการย่อย (${subItems.length} รายการ)</h4>
+                        <div class="space-y-3">
+                            ${subItems.map(subItem => `
+                                <div class="sub-item-card">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h5 class="font-medium text-gray-900">${subItem.title}</h5>
+                                        <span class="px-2 py-1 text-xs rounded-full ${subItem.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                            (subItem.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800')}">
+                                            ${subItem.status === 'completed' ? 'เสร็จสิ้น' : 
+                                                (subItem.status === 'in_progress' ? 'กำลังดำเนินการ' : 'รอดำเนินการ')}
+                                        </span>
+                                    </div>
+                                    ${subItem.description ? `<p class="text-sm text-gray-600 mb-2">${subItem.description}</p>` : ''}
+                                    <div class="flex justify-between items-center">
+                                        <div class="flex-1 mr-4">
+                                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                                <div class="bg-blue-600 h-2 rounded-full" style="width: ${subItem.progress}%"></div>
+                                            </div>
+                                            <div class="text-xs text-gray-500 mt-1">${subItem.progress}%</div>
+                                        </div>
+                                        ${subItem.attachment_url ? `
+                                            <div class="file-attachment">
+                                                <span>📄</span>
+                                                <span class="text-sm">${subItem.attachment_name || 'เอกสารแนบ'}</span>
+                                                <a href="uploads/ita/${subItem.attachment_url}" 
+                                                   class="download-btn ml-2" 
+                                                   download="${subItem.attachment_name || 'document.pdf'}"
+                                                   target="_blank">
+                                                    📥 ดาวน์โหลด
+                                                </a>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else {
+                subItemsHtml = `
+                    <div class="mt-6 text-center py-8 bg-gray-50 rounded-lg">
+                        <div class="text-4xl mb-2">📝</div>
+                        <p class="text-gray-500">ยังไม่มีรายการย่อย</p>
+                    </div>
+                `;
+            }
+
+            const modalContent = `
+                <div class="mb-6">
+                    <div class="flex items-center mb-4">
+                        <span class="px-3 py-1 text-sm rounded-full text-white bg-blue-600 mr-3">
+                            ${item.moit_number}
+                        </span>
+                        <span class="px-2 py-1 text-xs rounded-full ${item.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                            (item.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800')}">
+                            ${item.status === 'completed' ? 'เสร็จสิ้น' : 
+                                (item.status === 'in_progress' ? 'กำลังดำเนินการ' : 'รอดำเนินการ')}
+                        </span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">${item.title}</h3>
+                    ${item.description ? `
+                        <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                            <h4 class="font-medium text-gray-800 mb-2">📋 รายละเอียด</h4>
+                            <p class="text-gray-700">${item.description.replace(/\n/g, '<br>')}</p>
+                        </div>
+                    ` : ''}
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h4 class="font-medium text-gray-800 mb-2">📊 ความคืบหน้าโดยรวม</h4>
+                        <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                            <div class="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500" 
+                                 style="width: ${item.calculated_progress}%"></div>
+                        </div>
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>ความคืบหน้า</span>
+                            <span class="font-semibold">${item.calculated_progress}%</span>
+                        </div>
+                    </div>
+                </div>
+                ${subItemsHtml}
+                <div class="mt-6 pt-4 border-t border-gray-200 text-center">
+                    <button onclick="exportItemReport(${item.id})" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition duration-300 mr-3">
+                        📄 ส่งออกรายงาน
+                    </button>
+                    <button onclick="closeModal()" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition duration-300">
+                        ปิด
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('modalContent').innerHTML = modalContent;
         }
 
         function viewSubItems(itemId) {
-            // You can implement a modal showing sub-items
-            alert(`กำลังแสดงรายการย่อยของ item ID: ${itemId}`);
+            viewDetails(itemId); // Same as view details for now
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        function exportItemReport(itemId) {
+            window.open(`export_item.php?id=${itemId}&format=pdf`, '_blank');
         }
 
         function generateReport() {
-            alert('กำลังสร้างรายงานสรุป...\n\nรายงานจะรวมถึง:\n- ผลการประเมินแต่ละรายการ\n- แผนภูมิเปรียบเทียบ\n- ข้อเสนอแนะการปรับปรุง');
+            window.open('export_report.php?format=pdf', '_blank');
         }
 
         function exportData() {
-            window.location.href = 'export.php?type=json';
+            window.open('export_report.php?format=json', '_blank');
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('detailModal');
+            if (event.target == modal) {
+                closeModal();
+            }
         }
 
         // Initialize the dashboard
