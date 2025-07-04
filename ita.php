@@ -431,7 +431,7 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
         <div class="header fade-in">
             <h1>ระบบประเมิน ITA</h1>
             <p>Information Technology Assessment - มาตรฐานความโปร่งใสและการต่อต้านการทุจริต MOIT</p>
-            <p><strong>ปีงบประมาณ พ.ศ. 2568</strong> | กระทรวงสาธารณสุข</p>
+            <p><strong>ปีงบประมาณ พ.ศ. 2568</strong> | โรงพยาบาลทุ่งหัวช้าง</p>
             
             <div class="stats-bar">
                 <div class="stat-item">
@@ -523,11 +523,16 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
                     <div class="text-3xl font-bold text-purple-600 mb-2"><?php echo $daysLeft; ?></div>
                     <div class="text-gray-600">วันที่เหลือในปีงบ</div>
                 </div>
+                
             </div>
 
             <div class="export-section">
+                <p class="text-gray-600 mb-4">คุณสามารถสร้างรายงานสรุปหรือส่งออกข้อมูลได้ที่นี่:</p>
+                <button class="btn btn-primary" onclick="generateReport()">📊 สร้าง
+                <!-- 
                 <button class="btn btn-primary" onclick="generateReport()">📊 สร้างรายงานสรุป</button>
                 <button class="btn btn-secondary" onclick="exportData()">📁 ส่งออกข้อมูล</button>
+                -->
             </div>
         </div>
     </div>
