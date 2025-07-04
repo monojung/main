@@ -1,7 +1,7 @@
 <?php
 require_once '../includes/auth.php';
 require_once '../config/database.php';
-require_once 'functions.php';
+require_once '../admin/functions.php';
 
 // Require admin role
 requireAdmin('../login.php');
@@ -49,7 +49,6 @@ try {
         id INT AUTO_INCREMENT PRIMARY KEY,
         item_id INT NOT NULL,
         title TEXT NOT NULL,
-        description TEXT,
         progress INT DEFAULT 0,
         status ENUM('pending', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending',
         attachment_url VARCHAR(255),
@@ -82,6 +81,7 @@ try {
 
 } catch (Exception $e) {
     // Tables creation failed, but continue
+    error_log("Database error: " . $e->getMessage());
 }
 
 // Handle form submissions
@@ -179,7 +179,6 @@ if ($_POST && $action) {
             case 'add_sub_item':
                 $item_id = (int)($_POST['item_id'] ?? 0);
                 $title = sanitizeInput($_POST['title'] ?? '');
-                $description = sanitizeInput($_POST['description'] ?? '');
                 $progress = (int)($_POST['progress'] ?? 0);
                 $status = sanitizeInput($_POST['status'] ?? 'pending');
                 $sort_order = (int)($_POST['sort_order'] ?? 0);
@@ -205,6 +204,9 @@ if ($_POST && $action) {
                         if (move_uploaded_file($_FILES['attachment']['tmp_name'], $uploadPath)) {
                             $attachment_url = $newFileName;
                             $attachment_name = $fileName;
+                        } else {
+                            $error = "ไม่สามารถอัปโหลดไฟล์ได้";
+                            break;
                         }
                     } else {
                         $error = "กรุณาอัปโหลดไฟล์ PDF เท่านั้น";
@@ -213,14 +215,22 @@ if ($_POST && $action) {
                 }
                 
                 if (!$item_id || empty($title)) {
-                    $error = "กรุณากรอกข้อมูลที่จำเป็น";
+                    $error = "กรุณากรอกข้อมูลที่จำเป็น (รายการ ITA และหัวข้อย่อย)";
                 } else {
-                    $stmt = $conn->prepare("INSERT INTO ita_sub_items (item_id, title, description, progress, status, attachment_url, attachment_name, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                    if ($stmt->execute([$item_id, $title, $description, $progress, $status, $attachment_url, $attachment_name, $sort_order])) {
+                    // Check if item exists
+                    $stmt = $conn->prepare("SELECT id FROM ita_items WHERE id = ? AND is_active = 1");
+                    $stmt->execute([$item_id]);
+                    if (!$stmt->fetch()) {
+                        $error = "ไม่พบรายการ ITA ที่เลือก";
+                        break;
+                    }
+                    
+                    $stmt = $conn->prepare("INSERT INTO ita_sub_items (item_id, title, progress, status, attachment_url, attachment_name, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    if ($stmt->execute([$item_id, $title, $progress, $status, $attachment_url, $attachment_name, $sort_order])) {
                         $message = "เพิ่มหัวข้อย่อยเรียบร้อยแล้ว";
                         $action = '';
                     } else {
-                        $error = "ไม่สามารถเพิ่มหัวข้อย่อยได้";
+                        $error = "ไม่สามารถเพิ่มหัวข้อย่อยได้ กรุณาลองใหม่อีกครั้ง";
                     }
                 }
                 break;
@@ -228,7 +238,6 @@ if ($_POST && $action) {
             case 'edit_sub_item':
                 $id = (int)($_POST['id'] ?? 0);
                 $title = sanitizeInput($_POST['title'] ?? '');
-                $description = sanitizeInput($_POST['description'] ?? '');
                 $progress = (int)($_POST['progress'] ?? 0);
                 $status = sanitizeInput($_POST['status'] ?? 'pending');
                 $sort_order = (int)($_POST['sort_order'] ?? 0);
@@ -269,8 +278,8 @@ if ($_POST && $action) {
                 if (!$id || empty($title)) {
                     $error = "ข้อมูลไม่ถูกต้อง";
                 } else {
-                    $stmt = $conn->prepare("UPDATE ita_sub_items SET title = ?, description = ?, progress = ?, status = ?, attachment_url = ?, attachment_name = ?, sort_order = ? WHERE id = ?");
-                    if ($stmt->execute([$title, $description, $progress, $status, $attachment_url, $attachment_name, $sort_order, $id])) {
+                    $stmt = $conn->prepare("UPDATE ita_sub_items SET title = ?, progress = ?, status = ?, attachment_url = ?, attachment_name = ?, sort_order = ? WHERE id = ?");
+                    if ($stmt->execute([$title, $progress, $status, $attachment_url, $attachment_name, $sort_order, $id])) {
                         $message = "แก้ไขหัวข้อย่อยเรียบร้อยแล้ว";
                         $action = '';
                     } else {
@@ -343,8 +352,8 @@ if ($_POST && $action) {
                 break;
         }
     } catch (Exception $e) {
-        logError($e->getMessage(), __FILE__, __LINE__);
-        $error = "เกิดข้อผิดพลาด กรุณาลองใหม่";
+        error_log("Error in ITA management: " . $e->getMessage());
+        $error = "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
     }
 }
 
@@ -805,7 +814,7 @@ try {
                     </div>
                     
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">คำอธิบายรายละเอียด</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">คำอธิบาย</label>
                         <textarea name="description" rows="4" 
                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                   placeholder="อธิบายรายละเอียดของรายการ ITA"><?php echo htmlspecialchars($edit_item['description'] ?? ''); ?></textarea>
@@ -849,7 +858,7 @@ try {
             </form>
 
             <?php elseif (in_array($action, ['add_sub_item', 'edit_sub_item'])): ?>
-            <!-- Sub Item Form -->
+            <!-- Sub Item Form (ลบ description ออก) -->
             <form method="POST" enctype="multipart/form-data" class="space-y-6">
                 <input type="hidden" name="action" value="<?php echo $action; ?>">
                 <?php if ($edit_sub_item): ?>
@@ -881,13 +890,6 @@ try {
                         <textarea name="title" required rows="3" 
                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                   placeholder="กรอกหัวข้อย่อย"><?php echo htmlspecialchars($edit_sub_item['title'] ?? ''); ?></textarea>
-                    </div>
-                    
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">คำอธิบายรายละเอียด</label>
-                        <textarea name="description" rows="4" 
-                                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                  placeholder="อธิบายรายละเอียดของหัวข้อย่อย"><?php echo htmlspecialchars($edit_sub_item['description'] ?? ''); ?></textarea>
                     </div>
                     
                     <div class="md:col-span-2">
@@ -1035,6 +1037,7 @@ try {
                         if (!field.value.trim()) {
                             hasError = true;
                             field.classList.add('border-red-500');
+                            field.focus();
                         } else {
                             field.classList.remove('border-red-500');
                         }
@@ -1064,7 +1067,7 @@ try {
                         submitBtn.innerHTML = '<span class="animate-spin mr-2">⏳</span>กำลังบันทึก...';
                         submitBtn.disabled = true;
                         
-                        // Re-enable after 30 seconds as fallback for file upload
+                        // Re-enable after 30 seconds as fallback
                         setTimeout(() => {
                             submitBtn.innerHTML = originalText;
                             submitBtn.disabled = false;
@@ -1102,9 +1105,18 @@ try {
                     fill.style.width = this.value + '%';
                 });
             });
+
+            // Auto-resize textareas
+            const textareas = document.querySelectorAll('textarea');
+            textareas.forEach(textarea => {
+                textarea.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    this.style.height = this.scrollHeight + 'px';
+                });
+            });
         });
 
-        console.log('🔧 ITA Management system with file upload loaded successfully!');
+        console.log('🔧 ITA Management system loaded successfully!');
     </script>
 </body>
 </html>

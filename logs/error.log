@@ -333,3 +333,6 @@
 2025-07-02 12:26:21 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'attachment_url' in 'field list' in E:\xampp\htdocs\main\admin\ita.php on line 346
 2025-07-03 10:03:52 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'attachment_url' in 'field list' in E:\xampp\htdocs\main\admin\ita.php on line 346
 2025-07-03 10:04:51 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'attachment_url' in 'field list' in E:\xampp\htdocs\main\admin\ita.php on line 346
+2025-07-03 10:10:36 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'attachment_url' in 'field list' in E:\xampp\htdocs\main\admin\ita.php on line 346
+2025-07-03 13:30:42 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'attachment_url' in 'field list' in E:\xampp\htdocs\main\admin\ita.php on line 346
+2025-07-03 13:52:22 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'attachment_url' in 'field list' in E:\xampp\htdocs\main\admin\ita.php on line 346
