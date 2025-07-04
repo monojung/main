@@ -16,41 +16,23 @@ $conn = $db->getConnection();
 
 // Create necessary tables
 try {
-    // Categories table
-    $conn->exec("CREATE TABLE IF NOT EXISTS ita_categories (
+    // Items table (simplified)
+    $conn->exec("CREATE TABLE IF NOT EXISTS ita_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
+        moit_number VARCHAR(20) NOT NULL,
+        title TEXT NOT NULL,
         description TEXT,
-        color VARCHAR(7) DEFAULT '#667eea',
         sort_order INT DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )");
 
-    // Items table
-    $conn->exec("CREATE TABLE IF NOT EXISTS ita_items (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        category_id INT NOT NULL,
-        moit_number VARCHAR(20) NOT NULL,
-        title TEXT NOT NULL,
-        description TEXT,
-        progress INT DEFAULT 0,
-        status ENUM('pending', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending',
-        sort_order INT DEFAULT 0,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (category_id) REFERENCES ita_categories(id) ON DELETE CASCADE
-    )");
-
-    // Sub-items table
+    // Sub-items table (simplified)
     $conn->exec("CREATE TABLE IF NOT EXISTS ita_sub_items (
         id INT AUTO_INCREMENT PRIMARY KEY,
         item_id INT NOT NULL,
         title TEXT NOT NULL,
-        progress INT DEFAULT 0,
-        status ENUM('pending', 'in_progress', 'completed', 'cancelled') DEFAULT 'pending',
         attachment_url VARCHAR(255),
         attachment_name VARCHAR(255),
         sort_order INT DEFAULT 0,
@@ -60,27 +42,25 @@ try {
         FOREIGN KEY (item_id) REFERENCES ita_items(id) ON DELETE CASCADE
     )");
 
-    // Insert default categories if none exist
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM ita_categories");
+    // Insert default items if none exist
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM ita_items");
     $stmt->execute();
     if ($stmt->fetchColumn() == 0) {
-        $defaultCategories = [
-            ['การเปิดเผยข้อมูล', 'ข้อมูลความโปร่งใสและการเปิดเผยข้อมูล', '#3498db', 1],
-            ['การจัดซื้อจัดจ้าง', 'ระบบจัดซื้อจัดจ้างและการจัดหาพัสดุ', '#e74c3c', 2],
-            ['การบริหารบุคคล', 'การบริหารและพัฒนาทรัพยากรบุคคล', '#f39c12', 3],
-            ['การต่อต้านทุจริต', 'มาตรการป้องกันและต่อต้านการทุจริต', '#2ecc71', 4],
-            ['การมีส่วนร่วม', 'การมีส่วนร่วมของผู้มีส่วนได้ส่วนเสีย', '#9b59b6', 5],
-            ['สิทธิมนุษยชน', 'การเคารพสิทธิมนุษยชนและศักดิ์ศรีความเป็นมนุษย์', '#1abc9c', 6]
+        $defaultItems = [
+            ['MOIT 1', 'การเปิดเผยข้อมูลข่าวสารของหน่วยงาน', 'ข้อมูลข่าวสารที่ต้องเปิดเผยต่อสาธารณะ', 1],
+            ['MOIT 2', 'การรับฟังความคิดเห็น', 'ช่องทางการรับฟังความคิดเห็นจากประชาชน', 2],
+            ['MOIT 3', 'การเปิดโอกาสให้เกิดการมีส่วนร่วม', 'การสร้างการมีส่วนร่วมของผู้มีส่วนได้ส่วนเสีย', 3],
+            ['MOIT 4', 'การจัดซื้อจัดจ้างและการจัดหาพัสดุ', 'ความโปร่งใสในการจัดซื้อจัดจ้าง', 4],
+            ['MOIT 5', 'การบริหารทรัพยากรบุคคล', 'การบริหารงานบุคคลอย่างโปร่งใส', 5]
         ];
 
-        foreach ($defaultCategories as $cat) {
-            $stmt = $conn->prepare("INSERT INTO ita_categories (name, description, color, sort_order) VALUES (?, ?, ?, ?)");
-            $stmt->execute($cat);
+        foreach ($defaultItems as $item) {
+            $stmt = $conn->prepare("INSERT INTO ita_items (moit_number, title, description, sort_order) VALUES (?, ?, ?, ?)");
+            $stmt->execute($item);
         }
     }
 
 } catch (Exception $e) {
-    // Tables creation failed, but continue
     error_log("Database error: " . $e->getMessage());
 }
 
@@ -92,59 +72,17 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 if ($_POST && $action) {
     try {
         switch ($action) {
-            case 'add_category':
-                $name = sanitizeInput($_POST['name'] ?? '');
-                $description = sanitizeInput($_POST['description'] ?? '');
-                $color = sanitizeInput($_POST['color'] ?? '#667eea');
-                $sort_order = (int)($_POST['sort_order'] ?? 0);
-                
-                if (empty($name)) {
-                    $error = "กรุณากรอกชื่อหมวดหมู่";
-                } else {
-                    $stmt = $conn->prepare("INSERT INTO ita_categories (name, description, color, sort_order) VALUES (?, ?, ?, ?)");
-                    if ($stmt->execute([$name, $description, $color, $sort_order])) {
-                        $message = "เพิ่มหมวดหมู่เรียบร้อยแล้ว";
-                        $action = '';
-                    } else {
-                        $error = "ไม่สามารถเพิ่มหมวดหมู่ได้";
-                    }
-                }
-                break;
-
-            case 'edit_category':
-                $id = (int)($_POST['id'] ?? 0);
-                $name = sanitizeInput($_POST['name'] ?? '');
-                $description = sanitizeInput($_POST['description'] ?? '');
-                $color = sanitizeInput($_POST['color'] ?? '#667eea');
-                $sort_order = (int)($_POST['sort_order'] ?? 0);
-                
-                if (!$id || empty($name)) {
-                    $error = "ข้อมูลไม่ถูกต้อง";
-                } else {
-                    $stmt = $conn->prepare("UPDATE ita_categories SET name = ?, description = ?, color = ?, sort_order = ? WHERE id = ?");
-                    if ($stmt->execute([$name, $description, $color, $sort_order, $id])) {
-                        $message = "แก้ไขหมวดหมู่เรียบร้อยแล้ว";
-                        $action = '';
-                    } else {
-                        $error = "ไม่สามารถแก้ไขหมวดหมู่ได้";
-                    }
-                }
-                break;
-
             case 'add_item':
-                $category_id = (int)($_POST['category_id'] ?? 0);
                 $moit_number = sanitizeInput($_POST['moit_number'] ?? '');
                 $title = sanitizeInput($_POST['title'] ?? '');
                 $description = sanitizeInput($_POST['description'] ?? '');
-                $progress = (int)($_POST['progress'] ?? 0);
-                $status = sanitizeInput($_POST['status'] ?? 'pending');
                 $sort_order = (int)($_POST['sort_order'] ?? 0);
                 
-                if (!$category_id || empty($moit_number) || empty($title)) {
+                if (empty($moit_number) || empty($title)) {
                     $error = "กรุณากรอกข้อมูลที่จำเป็น";
                 } else {
-                    $stmt = $conn->prepare("INSERT INTO ita_items (category_id, moit_number, title, description, progress, status, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    if ($stmt->execute([$category_id, $moit_number, $title, $description, $progress, $status, $sort_order])) {
+                    $stmt = $conn->prepare("INSERT INTO ita_items (moit_number, title, description, sort_order) VALUES (?, ?, ?, ?)");
+                    if ($stmt->execute([$moit_number, $title, $description, $sort_order])) {
                         $message = "เพิ่มรายการ ITA เรียบร้อยแล้ว";
                         $action = '';
                     } else {
@@ -155,19 +93,16 @@ if ($_POST && $action) {
 
             case 'edit_item':
                 $id = (int)($_POST['id'] ?? 0);
-                $category_id = (int)($_POST['category_id'] ?? 0);
                 $moit_number = sanitizeInput($_POST['moit_number'] ?? '');
                 $title = sanitizeInput($_POST['title'] ?? '');
                 $description = sanitizeInput($_POST['description'] ?? '');
-                $progress = (int)($_POST['progress'] ?? 0);
-                $status = sanitizeInput($_POST['status'] ?? 'pending');
                 $sort_order = (int)($_POST['sort_order'] ?? 0);
                 
-                if (!$id || !$category_id || empty($moit_number) || empty($title)) {
+                if (!$id || empty($moit_number) || empty($title)) {
                     $error = "ข้อมูลไม่ถูกต้อง";
                 } else {
-                    $stmt = $conn->prepare("UPDATE ita_items SET category_id = ?, moit_number = ?, title = ?, description = ?, progress = ?, status = ?, sort_order = ? WHERE id = ?");
-                    if ($stmt->execute([$category_id, $moit_number, $title, $description, $progress, $status, $sort_order, $id])) {
+                    $stmt = $conn->prepare("UPDATE ita_items SET moit_number = ?, title = ?, description = ?, sort_order = ? WHERE id = ?");
+                    if ($stmt->execute([$moit_number, $title, $description, $sort_order, $id])) {
                         $message = "แก้ไขรายการ ITA เรียบร้อยแล้ว";
                         $action = '';
                     } else {
@@ -179,8 +114,6 @@ if ($_POST && $action) {
             case 'add_sub_item':
                 $item_id = (int)($_POST['item_id'] ?? 0);
                 $title = sanitizeInput($_POST['title'] ?? '');
-                $progress = (int)($_POST['progress'] ?? 0);
-                $status = sanitizeInput($_POST['status'] ?? 'pending');
                 $sort_order = (int)($_POST['sort_order'] ?? 0);
                 
                 // Handle file upload
@@ -215,7 +148,7 @@ if ($_POST && $action) {
                 }
                 
                 if (!$item_id || empty($title)) {
-                    $error = "กรุณากรอกข้อมูลที่จำเป็น (รายการ ITA และหัวข้อย่อย)";
+                    $error = "กรุณากรอกข้อมูลที่จำเป็น";
                 } else {
                     // Check if item exists
                     $stmt = $conn->prepare("SELECT id FROM ita_items WHERE id = ? AND is_active = 1");
@@ -225,12 +158,12 @@ if ($_POST && $action) {
                         break;
                     }
                     
-                    $stmt = $conn->prepare("INSERT INTO ita_sub_items (item_id, title, progress, status, attachment_url, attachment_name, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    if ($stmt->execute([$item_id, $title, $progress, $status, $attachment_url, $attachment_name, $sort_order])) {
+                    $stmt = $conn->prepare("INSERT INTO ita_sub_items (item_id, title, attachment_url, attachment_name, sort_order) VALUES (?, ?, ?, ?, ?)");
+                    if ($stmt->execute([$item_id, $title, $attachment_url, $attachment_name, $sort_order])) {
                         $message = "เพิ่มหัวข้อย่อยเรียบร้อยแล้ว";
                         $action = '';
                     } else {
-                        $error = "ไม่สามารถเพิ่มหัวข้อย่อยได้ กรุณาลองใหม่อีกครั้ง";
+                        $error = "ไม่สามารถเพิ่มหัวข้อย่อยได้";
                     }
                 }
                 break;
@@ -238,8 +171,6 @@ if ($_POST && $action) {
             case 'edit_sub_item':
                 $id = (int)($_POST['id'] ?? 0);
                 $title = sanitizeInput($_POST['title'] ?? '');
-                $progress = (int)($_POST['progress'] ?? 0);
-                $status = sanitizeInput($_POST['status'] ?? 'pending');
                 $sort_order = (int)($_POST['sort_order'] ?? 0);
                 
                 // Handle file upload
@@ -278,24 +209,12 @@ if ($_POST && $action) {
                 if (!$id || empty($title)) {
                     $error = "ข้อมูลไม่ถูกต้อง";
                 } else {
-                    $stmt = $conn->prepare("UPDATE ita_sub_items SET title = ?, progress = ?, status = ?, attachment_url = ?, attachment_name = ?, sort_order = ? WHERE id = ?");
-                    if ($stmt->execute([$title, $progress, $status, $attachment_url, $attachment_name, $sort_order, $id])) {
+                    $stmt = $conn->prepare("UPDATE ita_sub_items SET title = ?, attachment_url = ?, attachment_name = ?, sort_order = ? WHERE id = ?");
+                    if ($stmt->execute([$title, $attachment_url, $attachment_name, $sort_order, $id])) {
                         $message = "แก้ไขหัวข้อย่อยเรียบร้อยแล้ว";
                         $action = '';
                     } else {
                         $error = "ไม่สามารถแก้ไขหัวข้อย่อยได้";
-                    }
-                }
-                break;
-
-            case 'delete_category':
-                $id = (int)($_POST['id'] ?? 0);
-                if ($id) {
-                    $stmt = $conn->prepare("DELETE FROM ita_categories WHERE id = ?");
-                    if ($stmt->execute([$id])) {
-                        $message = "ลบหมวดหมู่เรียบร้อยแล้ว";
-                    } else {
-                        $error = "ไม่สามารถลบหมวดหมู่ได้";
                     }
                 }
                 break;
@@ -315,38 +234,24 @@ if ($_POST && $action) {
             case 'delete_sub_item':
                 $id = (int)($_POST['id'] ?? 0);
                 if ($id) {
+                    // Get file info before deleting
+                    $stmt = $conn->prepare("SELECT attachment_url FROM ita_sub_items WHERE id = ?");
+                    $stmt->execute([$id]);
+                    $subItem = $stmt->fetch();
+                    
+                    // Delete the record
                     $stmt = $conn->prepare("DELETE FROM ita_sub_items WHERE id = ?");
                     if ($stmt->execute([$id])) {
+                        // Delete file if exists
+                        if ($subItem && $subItem['attachment_url']) {
+                            $filePath = '../uploads/ita/' . $subItem['attachment_url'];
+                            if (file_exists($filePath)) {
+                                unlink($filePath);
+                            }
+                        }
                         $message = "ลบหัวข้อย่อยเรียบร้อยแล้ว";
                     } else {
                         $error = "ไม่สามารถลบหัวข้อย่อยได้";
-                    }
-                }
-                break;
-
-            case 'update_status':
-                $type = sanitizeInput($_POST['type'] ?? '');
-                $id = (int)($_POST['id'] ?? 0);
-                $status = sanitizeInput($_POST['status'] ?? '');
-                
-                if ($id && in_array($status, ['pending', 'in_progress', 'completed', 'cancelled'])) {
-                    $table = '';
-                    switch ($type) {
-                        case 'item':
-                            $table = 'ita_items';
-                            break;
-                        case 'sub_item':
-                            $table = 'ita_sub_items';
-                            break;
-                    }
-                    
-                    if ($table) {
-                        $stmt = $conn->prepare("UPDATE $table SET status = ? WHERE id = ?");
-                        if ($stmt->execute([$status, $id])) {
-                            $message = "เปลี่ยนสถานะเรียบร้อยแล้ว";
-                        } else {
-                            $error = "ไม่สามารถเปลี่ยนสถานะได้";
-                        }
                     }
                 }
                 break;
@@ -358,15 +263,8 @@ if ($_POST && $action) {
 }
 
 // Get data for editing
-$edit_category = null;
 $edit_item = null;
 $edit_sub_item = null;
-
-if ($action === 'edit_category' && isset($_GET['id'])) {
-    $stmt = $conn->prepare("SELECT * FROM ita_categories WHERE id = ?");
-    $stmt->execute([(int)$_GET['id']]);
-    $edit_category = $stmt->fetch();
-}
 
 if ($action === 'edit_item' && isset($_GET['id'])) {
     $stmt = $conn->prepare("SELECT * FROM ita_items WHERE id = ?");
@@ -380,27 +278,11 @@ if ($action === 'edit_sub_item' && isset($_GET['id'])) {
     $edit_sub_item = $stmt->fetch();
 }
 
-// Get categories for dropdowns
-$categories = [];
-try {
-    $stmt = $conn->prepare("SELECT * FROM ita_categories WHERE is_active = 1 ORDER BY sort_order, name");
-    $stmt->execute();
-    $categories = $stmt->fetchAll();
-} catch (Exception $e) {
-    // No categories
-}
-
 // Get items for sub-item forms
 $items = [];
 if ($action === 'add_sub_item' || $action === 'edit_sub_item') {
     try {
-        $stmt = $conn->prepare("
-            SELECT i.*, c.name as category_name 
-            FROM ita_items i 
-            JOIN ita_categories c ON i.category_id = c.id 
-            WHERE i.is_active = 1 AND c.is_active = 1 
-            ORDER BY c.sort_order, i.sort_order, i.moit_number
-        ");
+        $stmt = $conn->prepare("SELECT * FROM ita_items WHERE is_active = 1 ORDER BY sort_order, moit_number");
         $stmt->execute();
         $items = $stmt->fetchAll();
     } catch (Exception $e) {
@@ -410,17 +292,11 @@ if ($action === 'add_sub_item' || $action === 'edit_sub_item') {
 
 // Get statistics
 $stats = [
-    'categories' => 0,
     'items' => 0,
-    'sub_items' => 0,
-    'completed_items' => 0
+    'sub_items' => 0
 ];
 
 try {
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM ita_categories WHERE is_active = 1");
-    $stmt->execute();
-    $stats['categories'] = $stmt->fetchColumn() ?? 0;
-    
     $stmt = $conn->prepare("SELECT COUNT(*) FROM ita_items WHERE is_active = 1");
     $stmt->execute();
     $stats['items'] = $stmt->fetchColumn() ?? 0;
@@ -428,10 +304,6 @@ try {
     $stmt = $conn->prepare("SELECT COUNT(*) FROM ita_sub_items WHERE is_active = 1");
     $stmt->execute();
     $stats['sub_items'] = $stmt->fetchColumn() ?? 0;
-    
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM ita_items WHERE is_active = 1 AND status = 'completed'");
-    $stmt->execute();
-    $stats['completed_items'] = $stmt->fetchColumn() ?? 0;
 } catch (Exception $e) {
     // Keep default values
 }
@@ -532,21 +404,14 @@ try {
         <!-- Dashboard View -->
         <div class="mb-8 fade-in">
             <h2 class="text-3xl lg:text-4xl font-bold text-white mb-2">📊 แดชบอร์ดจัดการ ITA</h2>
-            <p class="text-gray-200">จัดการหมวดหมู่ รายการ และหัวข้อย่อยของระบบประเมิน ITA</p>
+            <p class="text-gray-200">จัดการรายการและหัวข้อย่อยของระบบประเมิน ITA</p>
         </div>
 
         <!-- Statistics Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="glass-card rounded-2xl p-6 hover-lift fade-in">
                 <div class="text-center">
-                    <div class="text-3xl font-bold text-blue-600"><?php echo $stats['categories']; ?></div>
-                    <div class="text-sm text-gray-600">หมวดหมู่</div>
-                </div>
-            </div>
-            
-            <div class="glass-card rounded-2xl p-6 hover-lift fade-in">
-                <div class="text-center">
-                    <div class="text-3xl font-bold text-green-600"><?php echo $stats['items']; ?></div>
+                    <div class="text-3xl font-bold text-blue-600"><?php echo $stats['items']; ?></div>
                     <div class="text-sm text-gray-600">รายการ ITA</div>
                 </div>
             </div>
@@ -557,24 +422,12 @@ try {
                     <div class="text-sm text-gray-600">หัวข้อย่อย</div>
                 </div>
             </div>
-            
-            <div class="glass-card rounded-2xl p-6 hover-lift fade-in">
-                <div class="text-center">
-                    <div class="text-3xl font-bold text-orange-600"><?php echo $stats['completed_items']; ?></div>
-                    <div class="text-sm text-gray-600">เสร็จสิ้น</div>
-                </div>
-            </div>
         </div>
 
         <!-- Quick Actions -->
         <div class="glass-card rounded-2xl p-8 mb-8 fade-in">
             <h3 class="text-xl font-semibold text-gray-800 mb-6">🚀 การดำเนินการด่วน</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <a href="?action=add_category" class="bg-blue-600 text-white p-4 rounded-xl hover:bg-blue-700 transition duration-300 text-center">
-                    <div class="text-2xl mb-2">📁</div>
-                    <div class="font-medium">เพิ่มหมวดหมู่ใหม่</div>
-                </a>
-                
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <a href="?action=add_item" class="bg-green-600 text-white p-4 rounded-xl hover:bg-green-700 transition duration-300 text-center">
                     <div class="text-2xl mb-2">📋</div>
                     <div class="font-medium">เพิ่มรายการ ITA</div>
@@ -588,118 +441,98 @@ try {
         </div>
 
         <!-- Management Tables -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Categories Management -->
-            <div class="glass-card rounded-2xl overflow-hidden fade-in">
-                <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-cyan-50">
-                    <h3 class="text-xl font-semibold text-gray-800">📁 จัดการหมวดหมู่</h3>
+        <div class="glass-card rounded-2xl overflow-hidden fade-in">
+            <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50">
+                <h3 class="text-xl font-semibold text-gray-800">📋 จัดการรายการ ITA</h3>
+            </div>
+            <div class="p-6">
+                <?php 
+                try {
+                    $stmt = $conn->prepare("
+                        SELECT i.*,
+                               (SELECT COUNT(*) FROM ita_sub_items si WHERE si.item_id = i.id AND si.is_active = 1) as sub_items_count
+                        FROM ita_items i 
+                        WHERE i.is_active = 1 
+                        ORDER BY i.sort_order, i.moit_number
+                    ");
+                    $stmt->execute();
+                    $allItems = $stmt->fetchAll();
+                } catch (Exception $e) {
+                    $allItems = [];
+                }
+                ?>
+                
+                <?php if (empty($allItems)): ?>
+                <div class="text-center py-8">
+                    <div class="text-4xl mb-4">📋</div>
+                    <p class="text-gray-500 mb-4">ยังไม่มีรายการ ITA</p>
+                    <a href="?action=add_item" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300">
+                        เพิ่มรายการแรก
+                    </a>
                 </div>
-                <div class="p-6">
-                    <?php if (empty($categories)): ?>
-                    <div class="text-center py-8">
-                        <div class="text-4xl mb-4">📁</div>
-                        <p class="text-gray-500 mb-4">ยังไม่มีหมวดหมู่</p>
-                        <a href="?action=add_category" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300">
-                            เพิ่มหมวดหมู่แรก
-                        </a>
-                    </div>
-                    <?php else: ?>
-                    <div class="space-y-4">
-                        <?php foreach ($categories as $category): ?>
-                        <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-4 h-4 rounded-full" style="background-color: <?php echo $category['color']; ?>"></div>
-                                <div>
-                                    <div class="font-medium"><?php echo htmlspecialchars($category['name']); ?></div>
-                                    <div class="text-sm text-gray-500">ลำดับ: <?php echo $category['sort_order']; ?></div>
+                <?php else: ?>
+                <div class="space-y-3">
+                    <?php foreach ($allItems as $item): ?>
+                    <div class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <span class="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800">
+                                        <?php echo htmlspecialchars($item['moit_number']); ?>
+                                    </span>
+                                </div>
+                                <div class="font-medium text-base mb-1"><?php echo htmlspecialchars($item['title']); ?></div>
+                                <?php if (!empty($item['description'])): ?>
+                                <div class="text-sm text-gray-600 mb-2"><?php echo htmlspecialchars(substr($item['description'], 0, 100)) . (strlen($item['description']) > 100 ? '...' : ''); ?></div>
+                                <?php endif; ?>
+                                <div class="text-xs text-gray-500">
+                                    หัวข้อย่อย: <?php echo $item['sub_items_count']; ?> รายการ
                                 </div>
                             </div>
-                            <div class="flex space-x-2">
-                                <a href="?action=edit_category&id=<?php echo $category['id']; ?>" class="text-blue-600 hover:text-blue-800">
+                            <div class="flex space-x-2 ml-4">
+                                <a href="?action=add_sub_item&item_id=<?php echo $item['id']; ?>" class="text-purple-600 hover:text-purple-800 text-sm px-2 py-1 bg-purple-50 rounded">
+                                    📝
+                                </a>
+                                <a href="?action=edit_item&id=<?php echo $item['id']; ?>" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 bg-blue-50 rounded">
                                     ✏️
                                 </a>
-                                <button onclick="confirmDelete('category', <?php echo $category['id']; ?>)" class="text-red-600 hover:text-red-800">
+                                <button onclick="confirmDelete('item', <?php echo $item['id']; ?>)" class="text-red-600 hover:text-red-800 text-sm px-2 py-1 bg-red-50 rounded">
                                     🗑️
                                 </button>
                             </div>
                         </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Items Management -->
-            <div class="glass-card rounded-2xl overflow-hidden fade-in">
-                <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50">
-                    <h3 class="text-xl font-semibold text-gray-800">📋 จัดการรายการ ITA</h3>
-                </div>
-                <div class="p-6 max-h-96 overflow-y-auto">
-                    <?php 
-                    try {
-                        $stmt = $conn->prepare("
-                            SELECT i.*, c.name as category_name, c.color as category_color,
-                                   (SELECT COUNT(*) FROM ita_sub_items si WHERE si.item_id = i.id AND si.is_active = 1) as sub_items_count
-                            FROM ita_items i 
-                            JOIN ita_categories c ON i.category_id = c.id 
-                            WHERE i.is_active = 1 AND c.is_active = 1 
-                            ORDER BY c.sort_order, i.sort_order, i.moit_number
-                        ");
-                        $stmt->execute();
-                        $allItems = $stmt->fetchAll();
-                    } catch (Exception $e) {
-                        $allItems = [];
-                    }
-                    ?>
-                    
-                    <?php if (empty($allItems)): ?>
-                    <div class="text-center py-8">
-                        <div class="text-4xl mb-4">📋</div>
-                        <p class="text-gray-500 mb-4">ยังไม่มีรายการ ITA</p>
-                        <a href="?action=add_item" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300">
-                            เพิ่มรายการแรก
-                        </a>
-                    </div>
-                    <?php else: ?>
-                    <div class="space-y-3">
-                        <?php foreach ($allItems as $item): ?>
-                        <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <div class="flex items-center space-x-2 mb-1">
-                                        <span class="px-2 py-1 text-xs rounded-full text-white" style="background-color: <?php echo $item['category_color']; ?>">
-                                            <?php echo htmlspecialchars($item['moit_number']); ?>
-                                        </span>
-                                        <span class="px-2 py-1 text-xs rounded-full <?php 
-                                            echo $item['status'] === 'completed' ? 'bg-green-100 text-green-800' : 
-                                                ($item['status'] === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'); 
-                                        ?>">
-                                            <?php 
-                                            echo $item['status'] === 'completed' ? 'เสร็จสิ้น' : 
-                                                ($item['status'] === 'in_progress' ? 'กำลังดำเนินการ' : 'รอดำเนินการ'); 
-                                            ?>
-                                        </span>
-                                    </div>
-                                    <div class="font-medium text-sm"><?php echo htmlspecialchars(substr($item['title'], 0, 60)) . (strlen($item['title']) > 60 ? '...' : ''); ?></div>
-                                    <div class="text-xs text-gray-500">
-                                        <?php echo htmlspecialchars($item['category_name']); ?> • 
-                                        หัวข้อย่อย: <?php echo $item['sub_items_count']; ?> รายการ
-                                    </div>
-                                </div>
-                                <div class="flex space-x-1 ml-2">
-                                    <a href="?action=edit_item&id=<?php echo $item['id']; ?>" class="text-blue-600 hover:text-blue-800 text-sm">
-                                        ✏️
-                                    </a>
-                                    <button onclick="confirmDelete('item', <?php echo $item['id']; ?>)" class="text-red-600 hover:text-red-800 text-sm">
-                                        🗑️
-                                    </button>
+                        
+                        <!-- Sub-items preview -->
+                        <?php
+                        $stmt = $conn->prepare("SELECT * FROM ita_sub_items WHERE item_id = ? AND is_active = 1 ORDER BY sort_order LIMIT 3");
+                        $stmt->execute([$item['id']]);
+                        $subItemsPreview = $stmt->fetchAll();
+                        ?>
+                        
+                        <?php if (!empty($subItemsPreview)): ?>
+                        <div class="mt-3 pl-4 border-l-2 border-gray-200">
+                            <div class="text-xs text-gray-500 mb-2">หัวข้อย่อย:</div>
+                            <?php foreach ($subItemsPreview as $subItem): ?>
+                            <div class="flex justify-between items-center py-1 text-sm">
+                                <span class="text-gray-700"><?php echo htmlspecialchars(substr($subItem['title'], 0, 60)) . (strlen($subItem['title']) > 60 ? '...' : ''); ?></span>
+                                <div class="flex space-x-1">
+                                    <?php if ($subItem['attachment_url']): ?>
+                                    <span class="text-green-600 text-xs">📎</span>
+                                    <?php endif; ?>
+                                    <a href="?action=edit_sub_item&id=<?php echo $subItem['id']; ?>" class="text-blue-600 hover:text-blue-800 text-xs">✏️</a>
+                                    <button onclick="confirmDelete('sub_item', <?php echo $subItem['id']; ?>)" class="text-red-600 hover:text-red-800 text-xs">🗑️</button>
                                 </div>
                             </div>
+                            <?php endforeach; ?>
+                            <?php if ($item['sub_items_count'] > 3): ?>
+                            <div class="text-xs text-gray-400 mt-1">และอีก <?php echo $item['sub_items_count'] - 3; ?> รายการ...</div>
+                            <?php endif; ?>
                         </div>
-                        <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
-                    <?php endif; ?>
+                    <?php endforeach; ?>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -713,12 +546,10 @@ try {
                 <div>
                     <h2 class="text-3xl lg:text-4xl font-bold text-white">
                         <?php 
-                        echo $action === 'add_category' ? '📁 เพิ่มหมวดหมู่ใหม่' : 
-                            ($action === 'edit_category' ? '✏️ แก้ไขหมวดหมู่' : 
-                            ($action === 'add_item' ? '📋 เพิ่มรายการ ITA ใหม่' : 
+                        echo $action === 'add_item' ? '📋 เพิ่มรายการ ITA ใหม่' : 
                             ($action === 'edit_item' ? '✏️ แก้ไขรายการ ITA' : 
                             ($action === 'add_sub_item' ? '📝 เพิ่มหัวข้อย่อยใหม่' : 
-                            ($action === 'edit_sub_item' ? '✏️ แก้ไขหัวข้อย่อย' : 'จัดการ ITA')))));
+                            ($action === 'edit_sub_item' ? '✏️ แก้ไขหัวข้อย่อย' : 'จัดการ ITA')));
                         ?>
                     </h2>
                 </div>
@@ -726,58 +557,7 @@ try {
         </div>
 
         <div class="glass-card rounded-2xl p-8 fade-in">
-            <?php if (in_array($action, ['add_category', 'edit_category'])): ?>
-            <!-- Category Form -->
-            <form method="POST" class="space-y-6">
-                <input type="hidden" name="action" value="<?php echo $action; ?>">
-                <?php if ($edit_category): ?>
-                <input type="hidden" name="id" value="<?php echo $edit_category['id']; ?>">
-                <?php endif; ?>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อหมวดหมู่ *</label>
-                        <input type="text" name="name" required 
-                               value="<?php echo htmlspecialchars($edit_category['name'] ?? ''); ?>"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                               placeholder="เช่น การเปิดเผยข้อมูล">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">สี</label>
-                        <input type="color" name="color" 
-                               value="<?php echo htmlspecialchars($edit_category['color'] ?? '#667eea'); ?>"
-                               class="w-full h-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">คำอธิบาย</label>
-                        <textarea name="description" rows="3" 
-                                  class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                  placeholder="อธิบายรายละเอียดของหมวดหมู่"><?php echo htmlspecialchars($edit_category['description'] ?? ''); ?></textarea>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">ลำดับการแสดง</label>
-                        <input type="number" name="sort_order" min="0" 
-                               value="<?php echo htmlspecialchars($edit_category['sort_order'] ?? '0'); ?>"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                </div>
-                
-                <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-                    <a href="ita.php" class="bg-gray-100 text-gray-700 hover:bg-gray-200 px-6 py-3 rounded-xl transition duration-300 font-medium">
-                        ยกเลิก
-                    </a>
-                    <button type="submit" 
-                            class="bg-blue-600 text-white hover:bg-blue-700 px-6 py-3 rounded-xl transition duration-300 font-medium flex items-center space-x-2">
-                        <span><?php echo $action === 'add_category' ? '📁' : '💾'; ?></span>
-                        <span><?php echo $action === 'add_category' ? 'เพิ่มหมวดหมู่' : 'บันทึกการแก้ไข'; ?></span>
-                    </button>
-                </div>
-            </form>
-
-            <?php elseif (in_array($action, ['add_item', 'edit_item'])): ?>
+            <?php if (in_array($action, ['add_item', 'edit_item'])): ?>
             <!-- Item Form -->
             <form method="POST" class="space-y-6">
                 <input type="hidden" name="action" value="<?php echo $action; ?>">
@@ -787,23 +567,18 @@ try {
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">หมวดหมู่ *</label>
-                        <select name="category_id" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">เลือกหมวดหมู่</option>
-                            <?php foreach ($categories as $category): ?>
-                            <option value="<?php echo $category['id']; ?>" <?php echo ($edit_item['category_id'] ?? '') == $category['id'] ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($category['name']); ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    
-                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">หมายเลข MOIT *</label>
                         <input type="text" name="moit_number" required 
                                value="<?php echo htmlspecialchars($edit_item['moit_number'] ?? ''); ?>"
                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                placeholder="เช่น MOIT 1">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">ลำดับการแสดง</label>
+                        <input type="number" name="sort_order" min="0" 
+                               value="<?php echo htmlspecialchars($edit_item['sort_order'] ?? '0'); ?>"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
                     
                     <div class="md:col-span-2">
@@ -818,30 +593,6 @@ try {
                         <textarea name="description" rows="4" 
                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                   placeholder="อธิบายรายละเอียดของรายการ ITA"><?php echo htmlspecialchars($edit_item['description'] ?? ''); ?></textarea>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">ความคืบหน้า (%)</label>
-                        <input type="number" name="progress" min="0" max="100" 
-                               value="<?php echo htmlspecialchars($edit_item['progress'] ?? '0'); ?>"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">สถานะ</label>
-                        <select name="status" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="pending" <?php echo ($edit_item['status'] ?? 'pending') === 'pending' ? 'selected' : ''; ?>>รอดำเนินการ</option>
-                            <option value="in_progress" <?php echo ($edit_item['status'] ?? '') === 'in_progress' ? 'selected' : ''; ?>>กำลังดำเนินการ</option>
-                            <option value="completed" <?php echo ($edit_item['status'] ?? '') === 'completed' ? 'selected' : ''; ?>>เสร็จสิ้น</option>
-                            <option value="cancelled" <?php echo ($edit_item['status'] ?? '') === 'cancelled' ? 'selected' : ''; ?>>ยกเลิก</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">ลำดับการแสดง</label>
-                        <input type="number" name="sort_order" min="0" 
-                               value="<?php echo htmlspecialchars($edit_item['sort_order'] ?? '0'); ?>"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
                 </div>
                 
@@ -858,7 +609,7 @@ try {
             </form>
 
             <?php elseif (in_array($action, ['add_sub_item', 'edit_sub_item'])): ?>
-            <!-- Sub Item Form (ลบ description ออก) -->
+            <!-- Sub Item Form -->
             <form method="POST" enctype="multipart/form-data" class="space-y-6">
                 <input type="hidden" name="action" value="<?php echo $action; ?>">
                 <?php if ($edit_sub_item): ?>
@@ -877,7 +628,6 @@ try {
                         <?php foreach ($items as $item): ?>
                         <option value="<?php echo $item['id']; ?>">
                             <?php echo htmlspecialchars($item['moit_number'] . ' - ' . substr($item['title'], 0, 50) . (strlen($item['title']) > 50 ? '...' : '')); ?>
-                            (<?php echo htmlspecialchars($item['category_name']); ?>)
                         </option>
                         <?php endforeach; ?>
                     </select>
@@ -915,23 +665,6 @@ try {
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">ความคืบหน้า (%)</label>
-                        <input type="number" name="progress" min="0" max="100" 
-                               value="<?php echo htmlspecialchars($edit_sub_item['progress'] ?? '0'); ?>"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">สถานะ</label>
-                        <select name="status" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="pending" <?php echo ($edit_sub_item['status'] ?? 'pending') === 'pending' ? 'selected' : ''; ?>>รอดำเนินการ</option>
-                            <option value="in_progress" <?php echo ($edit_sub_item['status'] ?? '') === 'in_progress' ? 'selected' : ''; ?>>กำลังดำเนินการ</option>
-                            <option value="completed" <?php echo ($edit_sub_item['status'] ?? '') === 'completed' ? 'selected' : ''; ?>>เสร็จสิ้น</option>
-                            <option value="cancelled" <?php echo ($edit_sub_item['status'] ?? '') === 'cancelled' ? 'selected' : ''; ?>>ยกเลิก</option>
-                        </select>
-                    </div>
-                    
-                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">ลำดับการแสดง</label>
                         <input type="number" name="sort_order" min="0" 
                                value="<?php echo htmlspecialchars($edit_sub_item['sort_order'] ?? '0'); ?>"
@@ -959,7 +692,6 @@ try {
         // Delete confirmation
         function confirmDelete(type, id) {
             const typeText = {
-                'category': 'หมวดหมู่',
                 'item': 'รายการ ITA',
                 'sub_item': 'หัวข้อย่อย'
             };
@@ -970,28 +702,6 @@ try {
                 form.innerHTML = `
                     <input type="hidden" name="action" value="delete_${type}">
                     <input type="hidden" name="id" value="${id}">
-                `;
-                document.body.appendChild(form);
-                form.submit();
-            }
-        }
-
-        // Status update function
-        function updateStatus(type, id, newStatus) {
-            const statusText = {
-                'in_progress': 'เริ่มดำเนินการ',
-                'completed': 'เสร็จสิ้น',
-                'cancelled': 'ยกเลิก'
-            };
-            
-            if (confirm(`คุณต้องการ${statusText[newStatus]}รายการนี้หรือไม่?`)) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.innerHTML = `
-                    <input type="hidden" name="action" value="update_status">
-                    <input type="hidden" name="type" value="${type}">
-                    <input type="hidden" name="id" value="${id}">
-                    <input type="hidden" name="status" value="${newStatus}">
                 `;
                 document.body.appendChild(form);
                 form.submit();
@@ -1081,28 +791,6 @@ try {
             fileInputs.forEach(input => {
                 input.addEventListener('change', function() {
                     previewFile(this);
-                });
-            });
-
-            // Color picker preview
-            const colorInputs = document.querySelectorAll('input[type="color"]');
-            colorInputs.forEach(input => {
-                input.addEventListener('change', function() {
-                    this.style.borderColor = this.value;
-                });
-            });
-
-            // Progress bar visual feedback
-            const progressInputs = document.querySelectorAll('input[name="progress"]');
-            progressInputs.forEach(input => {
-                const preview = document.createElement('div');
-                preview.className = 'mt-2 w-full bg-gray-200 rounded-full h-2';
-                preview.innerHTML = '<div class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: ' + input.value + '%"></div>';
-                input.parentNode.appendChild(preview);
-                
-                input.addEventListener('input', function() {
-                    const fill = preview.querySelector('div');
-                    fill.style.width = this.value + '%';
                 });
             });
 

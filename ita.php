@@ -5,68 +5,32 @@ require_once 'config/database.php';
 $db = new Database();
 $conn = $db->getConnection();
 
-// Fetch ITA categories and items
+// Fetch ITA items and sub-items
 try {
-    // Get categories with their items and sub-items
-    $stmt = $conn->prepare("
-        SELECT 
-            c.*,
-            COUNT(i.id) as total_items,
-            AVG(CASE WHEN i.status = 'completed' THEN 100 ELSE i.progress END) as avg_progress
-        FROM ita_categories c
-        LEFT JOIN ita_items i ON c.id = i.category_id
-        WHERE c.is_active = 1
-        GROUP BY c.id
-        ORDER BY c.sort_order, c.id
-    ");
-    $stmt->execute();
-    $categories = $stmt->fetchAll();
-
     // Get all items with their sub-items
     $stmt = $conn->prepare("
         SELECT 
             i.*,
-            c.name as category_name,
-            c.color as category_color,
-            (SELECT COUNT(*) FROM ita_sub_items si WHERE si.item_id = i.id) as sub_items_count,
-            (SELECT COUNT(*) FROM ita_sub_items si WHERE si.item_id = i.id AND si.status = 'completed') as completed_sub_items
+            (SELECT COUNT(*) FROM ita_sub_items si WHERE si.item_id = i.id AND si.is_active = 1) as sub_items_count
         FROM ita_items i
-        JOIN ita_categories c ON i.category_id = c.id
-        WHERE i.is_active = 1 AND c.is_active = 1
-        ORDER BY c.sort_order, i.sort_order, i.id
+        WHERE i.is_active = 1
+        ORDER BY i.sort_order, i.id
     ");
     $stmt->execute();
     $items = $stmt->fetchAll();
 
     // Calculate overall statistics
     $totalItems = count($items);
-    $completedItems = 0;
-    $totalProgress = 0;
+    $totalSubItems = 0;
 
     foreach ($items as $item) {
-        if ($item['sub_items_count'] > 0) {
-            // Calculate progress based on sub-items
-            $item['calculated_progress'] = $item['sub_items_count'] > 0 ? 
-                round(($item['completed_sub_items'] / $item['sub_items_count']) * 100) : 0;
-        } else {
-            // Use manual progress
-            $item['calculated_progress'] = $item['progress'];
-        }
-        
-        if ($item['calculated_progress'] >= 70) {
-            $completedItems++;
-        }
-        $totalProgress += $item['calculated_progress'];
+        $totalSubItems += $item['sub_items_count'];
     }
 
-    $overallScore = $totalItems > 0 ? round($totalProgress / $totalItems) : 0;
-
 } catch (Exception $e) {
-    $categories = [];
     $items = [];
     $totalItems = 0;
-    $completedItems = 0;
-    $overallScore = 0;
+    $totalSubItems = 0;
 }
 
 // Calculate days left (assuming fiscal year ends September 30)
@@ -204,56 +168,36 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
             line-height: 1.4;
         }
 
-        .progress-container {
-            margin: 15px 0;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #ecf0f1;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            border-radius: 10px;
-            transition: width 0.8s ease;
-        }
-
-        .progress-text {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 8px;
-            font-size: 0.9rem;
-            color: #7f8c8d;
-        }
-
         .sub-items-list {
             list-style: none;
             margin-top: 15px;
         }
 
         .sub-items-list li {
-            padding: 8px 0;
+            padding: 12px 0;
             border-bottom: 1px solid #ecf0f1;
             font-size: 0.9rem;
             color: #5a6c7d;
             display: flex;
             align-items: center;
+            justify-content: space-between;
         }
 
         .sub-items-list li:last-child {
             border-bottom: none;
         }
 
-        .check-icon {
+        .sub-item-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .sub-item-icon {
             width: 16px;
             height: 16px;
             border-radius: 50%;
-            background: #2ecc71;
+            background: #3498db;
             color: white;
             display: flex;
             align-items: center;
@@ -263,8 +207,14 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
             flex-shrink: 0;
         }
 
-        .incomplete {
-            background: #e74c3c;
+        .sub-item-text {
+            flex: 1;
+        }
+
+        .attachment-icon {
+            color: #27ae60;
+            font-size: 14px;
+            margin-left: 8px;
         }
 
         .action-buttons {
@@ -323,38 +273,6 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
             text-align: center;
         }
 
-        .category-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 25px;
-        }
-
-        .category-item {
-            text-align: center;
-            padding: 20px;
-            background: linear-gradient(45deg, #74b9ff, #0984e3);
-            color: white;
-            border-radius: 15px;
-            transition: transform 0.3s ease;
-        }
-
-        .category-item:hover {
-            transform: scale(1.05);
-        }
-
-        .category-score {
-            font-size: 2.5rem;
-            font-weight: bold;
-            display: block;
-            margin-bottom: 5px;
-        }
-
-        .category-name {
-            font-size: 0.9rem;
-            opacity: 0.9;
-        }
-
         .export-section {
             text-align: center;
             margin-top: 25px;
@@ -373,10 +291,6 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
             
             .header h1 {
                 font-size: 2rem;
-            }
-            
-            .category-grid {
-                grid-template-columns: repeat(2, 1fr);
             }
         }
 
@@ -497,6 +411,17 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
             align-items: center;
             gap: 8px;
         }
+
+        .description-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 0.9rem;
+            color: #6c757d;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -511,15 +436,11 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
             <div class="stats-bar">
                 <div class="stat-item">
                     <span class="stat-number"><?php echo $totalItems; ?></span>
-                    <span class="stat-label">รายการทั้งหมด</span>
+                    <span class="stat-label">รายการ ITA</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-number"><?php echo $completedItems; ?></span>
-                    <span class="stat-label">ดำเนินการแล้ว</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number"><?php echo $overallScore; ?>%</span>
-                    <span class="stat-label">คะแนนรวม</span>
+                    <span class="stat-number"><?php echo $totalSubItems; ?></span>
+                    <span class="stat-label">หัวข้อย่อย</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-number"><?php echo $daysLeft; ?></span>
@@ -531,13 +452,6 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
         <div class="assessment-grid" id="moitGrid">
             <?php foreach ($items as $index => $item): ?>
             <?php
-                // Calculate item progress
-                if ($item['sub_items_count'] > 0) {
-                    $itemProgress = round(($item['completed_sub_items'] / $item['sub_items_count']) * 100);
-                } else {
-                    $itemProgress = $item['progress'];
-                }
-                
                 // Get sub-items for this item
                 $stmt = $conn->prepare("
                     SELECT * FROM ita_sub_items 
@@ -549,22 +463,12 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
             ?>
             <div class="moit-card fade-in" style="animation-delay: <?php echo $index * 0.1; ?>s">
                 <div class="moit-header">
-                    <div class="moit-number"><?php echo $item['moit_number']; ?></div>
+                    <div class="moit-number"><?php echo htmlspecialchars($item['moit_number']); ?></div>
                     <div class="moit-title"><?php echo htmlspecialchars($item['title']); ?></div>
                 </div>
                 
-                <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: <?php echo $itemProgress; ?>%"></div>
-                    </div>
-                    <div class="progress-text">
-                        <span>ความคืบหน้า</span>
-                        <span><strong><?php echo $itemProgress; ?>%</strong></span>
-                    </div>
-                </div>
-                
                 <?php if (!empty($item['description'])): ?>
-                <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 8px; font-size: 0.9rem; color: #6c757d;">
+                <div class="description-box">
                     <?php echo nl2br(htmlspecialchars($item['description'])); ?>
                 </div>
                 <?php endif; ?>
@@ -573,36 +477,52 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
                 <ul class="sub-items-list">
                     <?php foreach ($subItems as $subItem): ?>
                     <li>
-                        <span class="check-icon <?php echo $subItem['status'] === 'completed' ? '' : 'incomplete'; ?>">✓</span>
-                        <?php echo htmlspecialchars($subItem['title']); ?>
-                        <?php if ($subItem['progress'] > 0 && $subItem['status'] !== 'completed'): ?>
-                        <span style="margin-left: auto; font-size: 0.8rem; color: #666;">
-                            (<?php echo $subItem['progress']; ?>%)
-                        </span>
+                        <div class="sub-item-content">
+                            <span class="sub-item-icon">📝</span>
+                            <span class="sub-item-text"><?php echo htmlspecialchars($subItem['title']); ?></span>
+                        </div>
+                        <?php if ($subItem['attachment_url']): ?>
+                        <a href="uploads/ita/<?php echo htmlspecialchars($subItem['attachment_url']); ?>" 
+                           target="_blank" 
+                           class="attachment-icon" 
+                           title="ดาวน์โหลด: <?php echo htmlspecialchars($subItem['attachment_name'] ?: 'เอกสาร'); ?>">
+                            📎
+                        </a>
                         <?php endif; ?>
                     </li>
                     <?php endforeach; ?>
                 </ul>
+                <?php else: ?>
+                <div class="text-center py-8 text-gray-500">
+                    <div class="text-3xl mb-2">📝</div>
+                    <p>ยังไม่มีหัวข้อย่อย</p>
+                </div>
                 <?php endif; ?>
                 
                 <div class="action-buttons">
                     <button class="btn btn-primary" onclick="viewDetails(<?php echo $item['id']; ?>)">ดูรายละเอียด</button>
-                    <button class="btn btn-secondary" onclick="viewSubItems(<?php echo $item['id']; ?>)">รายการย่อย (<?php echo count($subItems); ?>)</button>
+                    <button class="btn btn-secondary" onclick="viewSubItems(<?php echo $item['id']; ?>)">หัวข้อย่อย (<?php echo count($subItems); ?>)</button>
                 </div>
             </div>
             <?php endforeach; ?>
         </div>
 
         <div class="summary-section fade-in">
-            <h2 class="summary-title">สรุปผลการประเมินตามหมวดหมู่</h2>
+            <h2 class="summary-title">สรุปข้อมูลระบบประเมิน ITA</h2>
             
-            <div class="category-grid">
-                <?php foreach ($categories as $category): ?>
-                <div class="category-item" style="background: linear-gradient(45deg, <?php echo $category['color']; ?>, <?php echo $category['color']; ?>cc);">
-                    <span class="category-score"><?php echo round($category['avg_progress']); ?>%</span>
-                    <span class="category-name"><?php echo htmlspecialchars($category['name']); ?></span>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div class="text-center p-6 bg-blue-50 rounded-lg">
+                    <div class="text-3xl font-bold text-blue-600 mb-2"><?php echo $totalItems; ?></div>
+                    <div class="text-gray-600">รายการ ITA ทั้งหมด</div>
                 </div>
-                <?php endforeach; ?>
+                <div class="text-center p-6 bg-green-50 rounded-lg">
+                    <div class="text-3xl font-bold text-green-600 mb-2"><?php echo $totalSubItems; ?></div>
+                    <div class="text-gray-600">หัวข้อย่อยทั้งหมด</div>
+                </div>
+                <div class="text-center p-6 bg-purple-50 rounded-lg">
+                    <div class="text-3xl font-bold text-purple-600 mb-2"><?php echo $daysLeft; ?></div>
+                    <div class="text-gray-600">วันที่เหลือในปีงบ</div>
+                </div>
             </div>
 
             <div class="export-section">
@@ -625,7 +545,7 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
     <script>
         function viewDetails(itemId) {
             // Show loading
-            document.getElementById('modalContent').innerHTML = '<div class="text-center py-8"><div class="text-4xl mb-4">⏳</div><p>กำลังโหลดข้อมูล...</p></div>';
+            document.getElementById('modalContent').innerHTML = '<div style="text-align: center; padding: 40px;"><div style="font-size: 3rem; margin-bottom: 20px;">⏳</div><p>กำลังโหลดข้อมูล...</p></div>';
             document.getElementById('detailModal').style.display = 'block';
             
             // Fetch item details
@@ -635,46 +555,120 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
                     if (data.success) {
                         displayItemDetails(data.item, data.subItems);
                     } else {
-                        document.getElementById('modalContent').innerHTML = '<div class="text-center py-8"><div class="text-4xl mb-4">❌</div><p>ไม่สามารถโหลดข้อมูลได้</p></div>';
+                        document.getElementById('modalContent').innerHTML = '<div style="text-align: center; padding: 40px;"><div style="font-size: 3rem; margin-bottom: 20px;">❌</div><p>ไม่สามารถโหลดข้อมูลได้</p></div>';
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    document.getElementById('modalContent').innerHTML = '<div class="text-center py-8"><div class="text-4xl mb-4">❌</div><p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p></div>';
+                    // Fallback: show basic item details from page data
+                    showBasicItemDetails(itemId);
                 });
+        }
+
+        function showBasicItemDetails(itemId) {
+            // Get item data from the current page
+            const items = <?php echo json_encode($items); ?>;
+            const item = items.find(i => i.id == itemId);
+            
+            if (!item) {
+                document.getElementById('modalContent').innerHTML = '<div style="text-align: center; padding: 40px;"><div style="font-size: 3rem; margin-bottom: 20px;">❌</div><p>ไม่พบข้อมูลรายการ</p></div>';
+                return;
+            }
+
+            // Get sub-items for this item from DOM
+            const cardElement = document.querySelector(`.moit-card:nth-child(${items.indexOf(item) + 1})`);
+            const subItemElements = cardElement ? cardElement.querySelectorAll('.sub-items-list li') : [];
+            
+            let subItemsHtml = '';
+            if (subItemElements.length > 0) {
+                subItemsHtml = `
+                    <div style="margin-top: 30px;">
+                        <h4 style="font-size: 1.2rem; font-weight: 600; color: #2c3e50; margin-bottom: 20px;">📝 หัวข้อย่อย (${subItemElements.length} รายการ)</h4>
+                        <div style="space-y: 15px;">
+                `;
+                
+                subItemElements.forEach((element, index) => {
+                    const text = element.querySelector('.sub-item-text')?.textContent || '';
+                    const hasAttachment = element.querySelector('.attachment-icon') !== null;
+                    
+                    subItemsHtml += `
+                        <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px; padding: 15px; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="flex: 1;">
+                                    <h5 style="font-weight: 500; color: #2c3e50; margin-bottom: 5px;">${text}</h5>
+                                </div>
+                                ${hasAttachment ? `
+                                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 8px 12px; display: inline-flex; align-items: center; gap: 8px;">
+                                        <span>📄</span>
+                                        <span style="font-size: 0.9rem;">มีเอกสารแนบ</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                subItemsHtml += `
+                        </div>
+                    </div>
+                `;
+            } else {
+                subItemsHtml = `
+                    <div style="margin-top: 30px; text-align: center; padding: 40px; background: #f8f9fa; border-radius: 10px;">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">📝</div>
+                        <p style="color: #6c757d;">ยังไม่มีหัวข้อย่อย</p>
+                    </div>
+                `;
+            }
+
+            const modalContent = `
+                <div style="margin-bottom: 30px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <span style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 8px 16px; border-radius: 25px; font-size: 0.9rem; font-weight: 600; margin-right: 15px;">
+                            ${item.moit_number}
+                        </span>
+                    </div>
+                    <h3 style="font-size: 1.5rem; font-weight: 600; color: #2c3e50; margin-bottom: 20px; line-height: 1.4;">${item.title}</h3>
+                    ${item.description ? `
+                        <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 20px; border-radius: 0 10px 10px 0; margin-bottom: 20px;">
+                            <h4 style="font-weight: 600; color: #1976d2; margin-bottom: 10px;">📋 รายละเอียด</h4>
+                            <p style="color: #424242; line-height: 1.6;">${item.description.replace(/\n/g, '<br>')}</p>
+                        </div>
+                    ` : ''}
+                </div>
+                ${subItemsHtml}
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e9ecef; text-align: center;">
+                    <button onclick="exportItemReport(${item.id})" style="background: linear-gradient(45deg, #28a745, #20c997); color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 500; margin-right: 10px; cursor: pointer; transition: all 0.3s ease;">
+                        📄 ส่งออกรายงาน
+                    </button>
+                    <button onclick="closeModal()" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 500; cursor: pointer; transition: all 0.3s ease;">
+                        ปิด
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('modalContent').innerHTML = modalContent;
         }
 
         function displayItemDetails(item, subItems) {
             let subItemsHtml = '';
             if (subItems && subItems.length > 0) {
                 subItemsHtml = `
-                    <div class="mt-6">
-                        <h4 class="text-lg font-semibold text-gray-800 mb-4">📝 รายการย่อย (${subItems.length} รายการ)</h4>
-                        <div class="space-y-3">
+                    <div style="margin-top: 30px;">
+                        <h4 style="font-size: 1.2rem; font-weight: 600; color: #2c3e50; margin-bottom: 20px;">📝 หัวข้อย่อย (${subItems.length} รายการ)</h4>
+                        <div style="space-y: 15px;">
                             ${subItems.map(subItem => `
-                                <div class="sub-item-card">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <h5 class="font-medium text-gray-900">${subItem.title}</h5>
-                                        <span class="px-2 py-1 text-xs rounded-full ${subItem.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                                            (subItem.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800')}">
-                                            ${subItem.status === 'completed' ? 'เสร็จสิ้น' : 
-                                                (subItem.status === 'in_progress' ? 'กำลังดำเนินการ' : 'รอดำเนินการ')}
-                                        </span>
-                                    </div>
-                                    ${subItem.description ? `<p class="text-sm text-gray-600 mb-2">${subItem.description}</p>` : ''}
-                                    <div class="flex justify-between items-center">
-                                        <div class="flex-1 mr-4">
-                                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                                <div class="bg-blue-600 h-2 rounded-full" style="width: ${subItem.progress}%"></div>
-                                            </div>
-                                            <div class="text-xs text-gray-500 mt-1">${subItem.progress}%</div>
+                                <div style="background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px; padding: 15px; margin-bottom: 10px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                                        <div style="flex: 1;">
+                                            <h5 style="font-weight: 500; color: #2c3e50; margin-bottom: 5px;">${subItem.title}</h5>
                                         </div>
                                         ${subItem.attachment_url ? `
-                                            <div class="file-attachment">
+                                            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 8px 12px; display: inline-flex; align-items: center; gap: 8px;">
                                                 <span>📄</span>
-                                                <span class="text-sm">${subItem.attachment_name || 'เอกสารแนบ'}</span>
+                                                <span style="font-size: 0.9rem;">${subItem.attachment_name || 'เอกสารแนบ'}</span>
                                                 <a href="uploads/ita/${subItem.attachment_url}" 
-                                                   class="download-btn ml-2" 
+                                                   style="background: linear-gradient(45deg, #28a745, #20c997); color: white; border: none; padding: 4px 8px; border-radius: 6px; text-decoration: none; font-size: 0.8rem; margin-left: 8px;" 
                                                    download="${subItem.attachment_name || 'document.pdf'}"
                                                    target="_blank">
                                                     📥 ดาวน์โหลด
@@ -689,50 +683,34 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
                 `;
             } else {
                 subItemsHtml = `
-                    <div class="mt-6 text-center py-8 bg-gray-50 rounded-lg">
-                        <div class="text-4xl mb-2">📝</div>
-                        <p class="text-gray-500">ยังไม่มีรายการย่อย</p>
+                    <div style="margin-top: 30px; text-align: center; padding: 40px; background: #f8f9fa; border-radius: 10px;">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">📝</div>
+                        <p style="color: #6c757d;">ยังไม่มีหัวข้อย่อย</p>
                     </div>
                 `;
             }
 
             const modalContent = `
-                <div class="mb-6">
-                    <div class="flex items-center mb-4">
-                        <span class="px-3 py-1 text-sm rounded-full text-white bg-blue-600 mr-3">
+                <div style="margin-bottom: 30px;">
+                    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                        <span style="background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 8px 16px; border-radius: 25px; font-size: 0.9rem; font-weight: 600; margin-right: 15px;">
                             ${item.moit_number}
                         </span>
-                        <span class="px-2 py-1 text-xs rounded-full ${item.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                            (item.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800')}">
-                            ${item.status === 'completed' ? 'เสร็จสิ้น' : 
-                                (item.status === 'in_progress' ? 'กำลังดำเนินการ' : 'รอดำเนินการ')}
-                        </span>
                     </div>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-4">${item.title}</h3>
+                    <h3 style="font-size: 1.5rem; font-weight: 600; color: #2c3e50; margin-bottom: 20px; line-height: 1.4;">${item.title}</h3>
                     ${item.description ? `
-                        <div class="bg-blue-50 p-4 rounded-lg mb-4">
-                            <h4 class="font-medium text-gray-800 mb-2">📋 รายละเอียด</h4>
-                            <p class="text-gray-700">${item.description.replace(/\n/g, '<br>')}</p>
+                        <div style="background: #e3f2fd; border-left: 4px solid #2196f3; padding: 20px; border-radius: 0 10px 10px 0; margin-bottom: 20px;">
+                            <h4 style="font-weight: 600; color: #1976d2; margin-bottom: 10px;">📋 รายละเอียด</h4>
+                            <p style="color: #424242; line-height: 1.6;">${item.description.replace(/\n/g, '<br>')}</p>
                         </div>
                     ` : ''}
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <h4 class="font-medium text-gray-800 mb-2">📊 ความคืบหน้าโดยรวม</h4>
-                        <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
-                            <div class="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500" 
-                                 style="width: ${item.calculated_progress}%"></div>
-                        </div>
-                        <div class="flex justify-between text-sm text-gray-600">
-                            <span>ความคืบหน้า</span>
-                            <span class="font-semibold">${item.calculated_progress}%</span>
-                        </div>
-                    </div>
                 </div>
                 ${subItemsHtml}
-                <div class="mt-6 pt-4 border-t border-gray-200 text-center">
-                    <button onclick="exportItemReport(${item.id})" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition duration-300 mr-3">
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e9ecef; text-align: center;">
+                    <button onclick="exportItemReport(${item.id})" style="background: linear-gradient(45deg, #28a745, #20c997); color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 500; margin-right: 10px; cursor: pointer; transition: all 0.3s ease;">
                         📄 ส่งออกรายงาน
                     </button>
-                    <button onclick="closeModal()" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition duration-300">
+                    <button onclick="closeModal()" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 500; cursor: pointer; transition: all 0.3s ease;">
                         ปิด
                     </button>
                 </div>
@@ -742,7 +720,7 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
         }
 
         function viewSubItems(itemId) {
-            viewDetails(itemId); // Same as view details for now
+            viewDetails(itemId); // Same as view details
         }
 
         function closeModal() {
@@ -771,18 +749,57 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
 
         // Initialize the dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            // Animate progress bars
-            setTimeout(() => {
-                const progressBars = document.querySelectorAll('.progress-fill');
-                progressBars.forEach(bar => {
-                    const width = bar.style.width;
-                    bar.style.width = '0%';
-                    setTimeout(() => {
-                        bar.style.width = width;
-                    }, 500);
+            console.log('🔧 ITA Assessment system loaded successfully!');
+            
+            // Add hover effects to attachment icons
+            const attachmentIcons = document.querySelectorAll('.attachment-icon');
+            attachmentIcons.forEach(icon => {
+                icon.addEventListener('mouseenter', function() {
+                    this.style.transform = 'scale(1.2)';
                 });
-            }, 1000);
+                icon.addEventListener('mouseleave', function() {
+                    this.style.transform = 'scale(1)';
+                });
+            });
+
+            // Add click handlers for buttons
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(button => {
+                button.addEventListener('mouseenter', function() {
+                    if (!this.classList.contains('btn-secondary')) {
+                        this.style.transform = 'translateY(-2px)';
+                    }
+                });
+                button.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
         });
     </script>
+
+    <style>
+        .grid {
+            display: grid;
+        }
+        .grid-cols-1 {
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+        }
+        .gap-6 {
+            gap: 1.5rem;
+        }
+        .mb-8 {
+            margin-bottom: 2rem;
+        }
+        @media (min-width: 768px) {
+            .md\:grid-cols-2 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        @media (min-width: 1024px) {
+            .lg\:grid-cols-3 {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+    </style>
 </body>
 </html>
