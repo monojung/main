@@ -1,28 +1,33 @@
 <?php
-header('Content-Type: application/json; charset=utf-8');
-
 require_once 'config/database.php';
 
-// Get database connection
-$db = new Database();
-$conn = $db->getConnection();
+header('Content-Type: application/json');
 
-$itemId = (int)($_GET['id'] ?? 0);
-
-if (!$itemId) {
-    echo json_encode(['success' => false, 'error' => 'Invalid item ID']);
-    exit;
-}
+$response = [
+    'success' => false,
+    'message' => '',
+    'item' => null,
+    'subItems' => []
+];
 
 try {
+    $id = (int)($_GET['id'] ?? 0);
+    
+    if (!$id) {
+        throw new Exception('Invalid ID');
+    }
+    
+    // Get database connection
+    $db = new Database();
+    $conn = $db->getConnection();
+    
     // Get item details
     $stmt = $conn->prepare("SELECT * FROM ita_items WHERE id = ? AND is_active = 1");
-    $stmt->execute([$itemId]);
+    $stmt->execute([$id]);
     $item = $stmt->fetch();
     
     if (!$item) {
-        echo json_encode(['success' => false, 'error' => 'Item not found']);
-        exit;
+        throw new Exception('Item not found');
     }
     
     // Get sub-items
@@ -31,16 +36,16 @@ try {
         WHERE item_id = ? AND is_active = 1 
         ORDER BY sort_order, id
     ");
-    $stmt->execute([$itemId]);
+    $stmt->execute([$id]);
     $subItems = $stmt->fetchAll();
     
-    echo json_encode([
-        'success' => true,
-        'item' => $item,
-        'subItems' => $subItems
-    ]);
+    $response['success'] = true;
+    $response['item'] = $item;
+    $response['subItems'] = $subItems;
     
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'error' => 'Database error']);
+    $response['message'] = $e->getMessage();
 }
+
+echo json_encode($response, JSON_UNESCAPED_UNICODE);
 ?>

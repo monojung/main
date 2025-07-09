@@ -528,7 +528,7 @@ $daysLeft = max(0, $today->diff($fiscalYearEnd)->days);
 
             <div class="export-section">
                 <p class="text-gray-600 mb-4">คุณสามารถสร้างรายงานสรุปหรือส่งออกข้อมูลได้ที่นี่:</p>
-                <button class="btn btn-primary" onclick="generateReport()">📊 สร้าง
+                <button class="btn btn-primary" onclick="generateReport()">📊 สร้าง 
                 <!-- 
                 <button class="btn btn-primary" onclick="generateReport()">📊 สร้างรายงานสรุป</button>
                 <button class="btn btn-secondary" onclick="exportData()">📁 ส่งออกข้อมูล</button>

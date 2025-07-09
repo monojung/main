@@ -392,6 +392,231 @@ if (!function_exists('getFlash')) {
 }
 
 // ITA Management Functions
+if (!function_exists('getTotalITA')) {
+    function getTotalITA($conn) {
+        try {
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM ita_items WHERE is_active = 1");
+            $stmt->execute();
+            return $stmt->fetch()['count'] ?? 0;
+        } catch (Exception $e) {
+            logError($e->getMessage());
+            return 0;
+        }
+    }
+}
+
+if (!function_exists('getTotalITASubItems')) {
+    function getTotalITASubItems($conn) {
+        try {
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM ita_sub_items WHERE is_active = 1");
+            $stmt->execute();
+            return $stmt->fetch()['count'] ?? 0;
+        } catch (Exception $e) {
+            logError($e->getMessage());
+            return 0;
+        }
+    }
+}
+
+if (!function_exists('getITAItemsWithFiles')) {
+    function getITAItemsWithFiles($conn) {
+        try {
+            $stmt = $conn->prepare("
+                SELECT COUNT(*) as count 
+                FROM ita_sub_items 
+                WHERE is_active = 1 
+                AND attachment_url IS NOT NULL 
+                AND attachment_url != ''
+            ");
+            $stmt->execute();
+            return $stmt->fetch()['count'] ?? 0;
+        } catch (Exception $e) {
+            logError($e->getMessage());
+            return 0;
+        }
+    }
+}
+
+if (!function_exists('getITACompletionRate')) {
+    function getITACompletionRate($conn) {
+        try {
+            $totalItems = getTotalITA($conn);
+            $itemsWithSubItems = 0;
+            
+            if ($totalItems > 0) {
+                $stmt = $conn->prepare("
+                    SELECT COUNT(DISTINCT i.id) as count 
+                    FROM ita_items i 
+                    INNER JOIN ita_sub_items si ON i.id = si.item_id 
+                    WHERE i.is_active = 1 AND si.is_active = 1
+                ");
+                $stmt->execute();
+                $itemsWithSubItems = $stmt->fetch()['count'] ?? 0;
+            }
+            
+            return $totalItems > 0 ? round(($itemsWithSubItems / $totalItems) * 100, 2) : 0;
+        } catch (Exception $e) {
+            logError($e->getMessage());
+            return 0;
+        }
+    }
+}
+
+if (!function_exists('validateITAFile')) {
+    function validateITAFile($file) {
+        $errors = [];
+        
+        if (!isset($file['error']) || $file['error'] !== UPLOAD_ERR_OK) {
+            $errors[] = 'การอัปโหลดไฟล์ล้มเหลว';
+            return $errors;
+        }
+        
+        $allowedTypes = ['pdf', 'doc', 'docx'];
+        $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        
+        if (!in_array($fileExtension, $allowedTypes)) {
+            $errors[] = 'ประเภทไฟล์ไม่ถูกต้อง (รองรับเฉพาะ PDF, DOC, DOCX)';
+        }
+        
+        $maxSize = 10 * 1024 * 1024; // 10MB
+        if ($file['size'] > $maxSize) {
+            $errors[] = 'ไฟล์มีขนาดใหญ่เกินไป (สูงสุด 10MB)';
+        }
+        
+        return $errors;
+    }
+}
+
+if (!function_exists('uploadITAFile')) {
+    function uploadITAFile($file, $uploadDir = 'uploads/ita/') {
+        $errors = validateITAFile($file);
+        if (!empty($errors)) {
+            throw new Exception(implode(', ', $errors));
+        }
+        
+        if (!is_dir($uploadDir)) {
+            if (!mkdir($uploadDir, 0755, true)) {
+                throw new Exception('ไม่สามารถสร้างโฟลเดอร์สำหรับอัปโหลดได้');
+            }
+        }
+        
+        $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $newFileName = uniqid() . '_' . time() . '.' . $fileExtension;
+        $uploadPath = $uploadDir . $newFileName;
+        
+        if (!move_uploaded_file($file['tmp_name'], $uploadPath)) {
+            throw new Exception('ไม่สามารถอัปโหลดไฟล์ได้');
+        }
+        
+        return $newFileName;
+    }
+}
+
+if (!function_exists('deleteITAFile')) {
+    function deleteITAFile($fileName, $uploadDir = 'uploads/ita/') {
+        if (empty($fileName)) {
+            return true;
+        }
+        
+        $filePath = $uploadDir . $fileName;
+        if (file_exists($filePath)) {
+            return unlink($filePath);
+        }
+        
+        return true;
+    }
+}
+
+if (!function_exists('getITAStatistics')) {
+    function getITAStatistics($conn) {
+        return [
+            'total_items' => getTotalITA($conn),
+            'total_sub_items' => getTotalITASubItems($conn),
+            'items_with_files' => getITAItemsWithFiles($conn),
+            'completion_rate' => getITACompletionRate($conn)
+        ];
+    }
+}
+
+if (!function_exists('createITABackup')) {
+    function createITABackup($conn) {
+        try {
+            $backupData = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'items' => [],
+                'sub_items' => []
+            ];
+            
+            // Get all items
+            $stmt = $conn->prepare("SELECT * FROM ita_items WHERE is_active = 1");
+            $stmt->execute();
+            $backupData['items'] = $stmt->fetchAll();
+            
+            // Get all sub-items
+            $stmt = $conn->prepare("SELECT * FROM ita_sub_items WHERE is_active = 1");
+            $stmt->execute();
+            $backupData['sub_items'] = $stmt->fetchAll();
+            
+            $backupFile = 'backups/ita_backup_' . date('Y-m-d_H-i-s') . '.json';
+            
+            if (!is_dir('backups')) {
+                mkdir('backups', 0755, true);
+            }
+            
+            file_put_contents($backupFile, json_encode($backupData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+            
+            return $backupFile;
+        } catch (Exception $e) {
+            logError('ITA Backup failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+if (!function_exists('sanitizeITAInput')) {
+    function sanitizeITAInput($input) {
+        if (is_array($input)) {
+            return array_map('sanitizeITAInput', $input);
+        }
+        
+        return htmlspecialchars(trim($input), ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if (!function_exists('generateITAReport')) {
+    function generateITAReport($conn, $format = 'html') {
+        try {
+            $stmt = $conn->prepare("
+                SELECT i.*, COUNT(si.id) as sub_items_count
+                FROM ita_items i
+                LEFT JOIN ita_sub_items si ON i.id = si.item_id AND si.is_active = 1
+                WHERE i.is_active = 1
+                GROUP BY i.id
+                ORDER BY i.sort_order, i.moit_number
+            ");
+            $stmt->execute();
+            $items = $stmt->fetchAll();
+            
+            $report = [
+                'generated_at' => date('Y-m-d H:i:s'),
+                'total_items' => count($items),
+                'total_sub_items' => array_sum(array_column($items, 'sub_items_count')),
+                'items' => $items
+            ];
+            
+            if ($format === 'json') {
+                return json_encode($report, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            }
+            
+            return $report;
+        } catch (Exception $e) {
+            logError('Generate ITA Report failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+}
+
+// ITA Management Functions
 function getTotalITA($conn) {
     try {
         $stmt = $conn->prepare("SELECT COUNT(*) as count FROM ita_requests WHERE status != 'deleted'");

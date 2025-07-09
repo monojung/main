@@ -337,3 +337,7 @@
 2025-07-03 13:30:42 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'attachment_url' in 'field list' in E:\xampp\htdocs\main\admin\ita.php on line 346
 2025-07-03 13:52:22 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'attachment_url' in 'field list' in E:\xampp\htdocs\main\admin\ita.php on line 346
 2025-07-04 11:40:23 - Error: Unauthorized access attempt by user ID: 9 to page: /main/admin/ita.php Required roles: admin in E:\xampp\htdocs\main\includes\auth.php on line 63
+2025-07-05 04:12:59 - Error: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'summary' in 'field list' in E:\xampp\htdocs\main\admin\news.php on line 150
+2025-07-05 04:16:31 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.system_config' doesn't exist
+2025-07-05 04:16:31 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.system_config' doesn't exist
+2025-07-05 04:16:31 - Error: SQLSTATE[42S02]: Base table or view not found: 1146 Table 'thc_hospital.system_config' doesn't exist
