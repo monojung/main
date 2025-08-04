@@ -43,9 +43,9 @@
     <div class="bg-blue-800 text-white py-2">
         <div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center text-sm">
             <div class="flex items-center space-x-4">
-                
+<!-- Top Bar 
                 <span>📞 <?php echo htmlspecialchars($info['hospital_phone']); ?></span>
-                <span>📧 <?php echo htmlspecialchars($info['hospital_email']); ?></span>
+                <span>📧 <?php echo htmlspecialchars($info['hospital_email']); ?></span>-->
             </div>
             <div class="flex items-center space-x-4 mt-2 sm:mt-0">
                 <span>🕒 จันทร์-ศุกร์ 08:00-16:30</span>
